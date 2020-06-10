@@ -1,16 +1,24 @@
 import asyncio
 import datetime
+import importlib
 import json
 import logging
-from typing import Any, TextIO
+from typing import Any, Optional, TextIO, TypedDict
 
 import click
+import confuse
 import dateutil.tz
 
 from .. import git
-from ..parser.conventionalcommits.parser import ConventionalCommitParser
+from ..main import pass_config
+from ..parser.base import Parser
 
 logger = logging.getLogger(__name__)
+
+
+class ParsedCommit(TypedDict, total=False):
+    commit: git.Commit
+    parsed: Any
 
 
 @click.command()
@@ -27,25 +35,34 @@ logger = logging.getLogger(__name__)
     help="A file to write parsed commits to. If `-`, parsed commits will be written to stdout.",
 )
 @click.option(
-    "--include-unparsed",
+    "--include-unparsed/--no-include-unparsed",
     is_flag=True,
+    default=None,
     help="If set, commits which fail to be parsed will be returned.",
 )
-def main(**kwargs):
-    asyncio.run(async_main(**kwargs))
+@pass_config
+def main(config: confuse.Configuration, **kwargs):
+    asyncio.run(async_main(config, **kwargs))
 
 
-async def async_main(input: TextIO, output: TextIO, **kwargs) -> None:
+async def async_main(
+    config: confuse.Configuration,
+    *,
+    input: TextIO,
+    output: TextIO,
+    include_unparsed: Optional[bool],
+) -> None:
+    if include_unparsed is not None:
+        config.set_args({"parser.include-unparsed": include_unparsed}, dots=True)
+
     try:
-        await async_main_impl(input=input, output=output, **kwargs)
+        await async_main_impl(config, input=input, output=output)
     finally:
         input.close()
         output.close()
 
 
-async def async_main_impl(input: TextIO, output: TextIO, include_unparsed: bool) -> None:
-    parser = ConventionalCommitParser()
-
+async def async_main_impl(config: confuse.Configuration, *, input: TextIO, output: TextIO) -> None:
     def _json_serial(obj):
         """JSON serializer for objects not serializable by default json code"""
 
@@ -54,6 +71,15 @@ async def async_main_impl(input: TextIO, output: TextIO, include_unparsed: bool)
 
         raise TypeError("Type %s not serializable" % type(obj))
 
+    def _load_parser(config: confuse.Configuration) -> Parser[Any]:
+        parser_config = config["parser"]
+        module = parser_config["module"].get(str)
+        name = parser_config["name"].get(str)
+        custom_config = parser_config["config"]
+
+        return getattr(importlib.import_module(module), name)(custom_config)
+
+    parser = _load_parser(config)
     loop = asyncio.get_event_loop()
 
     while True:
@@ -65,10 +91,10 @@ async def async_main_impl(input: TextIO, output: TextIO, include_unparsed: bool)
         commit: git.Commit = git.create_commit(**json.loads(input_line))
         parsed: Any = parser.parse(commit)
 
-        if not include_unparsed and not parsed:
+        if not config["parser"]["include-unparsed"].get(bool) and not parsed:
             continue
 
-        data = {"commit": commit}
+        data: ParsedCommit = {"commit": commit}
         if parsed:
             data["parsed"] = parsed
 

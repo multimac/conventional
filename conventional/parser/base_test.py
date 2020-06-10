@@ -1,9 +1,10 @@
 import json
 
+import confuse
 import pytest
 
 from ..git import create_commit
-from .conventionalcommits.parser import ConventionalCommitParser
+from .conventional_commits import ConventionalCommitParser
 
 INVALID_COMMITS = [
     (
@@ -44,13 +45,13 @@ VALID_COMMITS = [
                 "_raw": "feat(somewhere): Test Commit",
                 "type": "feat",
                 "scope": "somewhere",
-                "breaking": False,
                 "message": "Test Commit",
             },
             "body": {
                 "_raw": "Some description of the change",
                 "content": "Some description of the change",
             },
+            "metadata": {"breaking": False, "closes": []},
         },
     ),
     (
@@ -68,7 +69,6 @@ VALID_COMMITS = [
                 "_raw": "feat(somewhere): Test Commit",
                 "type": "feat",
                 "scope": "somewhere",
-                "breaking": True,
                 "message": "Test Commit",
             },
             "body": {
@@ -82,6 +82,7 @@ VALID_COMMITS = [
                     ],
                 },
             },
+            "metadata": {"breaking": True, "closes": ["JIRA-1"]},
         },
     ),
 ]
@@ -113,7 +114,11 @@ VALID_PARSER_DATA = [
 
 @pytest.mark.parametrize("method, text, expected", INVALID_PARSER_DATA)
 def test_internal_parse_with_invalid_data(method, text, expected):
-    parser = ConventionalCommitParser()
+    config = confuse.Configuration("Conventional", "conventional", read=False)
+    config.read(user=False)
+
+    parser = ConventionalCommitParser(config["parser"]["config"])
+
     parser_method = parser.get_parsers()[method]
     change = parser._parse(parser_method, text)
 
@@ -122,7 +127,11 @@ def test_internal_parse_with_invalid_data(method, text, expected):
 
 @pytest.mark.parametrize("method, text, expected", VALID_PARSER_DATA)
 def test_internal_parse_with_valid_data(method, text, expected):
-    parser = ConventionalCommitParser()
+    config = confuse.Configuration("Conventional", "conventional", read=False)
+    config.read(user=False)
+
+    parser = ConventionalCommitParser(config["parser"]["config"])
+
     parser_method = parser.get_parsers()[method]
     change = parser._parse(parser_method, text)
 
@@ -131,7 +140,11 @@ def test_internal_parse_with_valid_data(method, text, expected):
 
 @pytest.mark.parametrize("commit", INVALID_COMMITS)
 def test_parser_with_invalid_commit(commit):
-    parser = ConventionalCommitParser()
+    config = confuse.Configuration("Conventional", "conventional", read=False)
+    config.read(user=False)
+
+    parser = ConventionalCommitParser(config["parser"]["config"])
+
     change = parser.parse(commit)
 
     assert change is None
@@ -139,7 +152,11 @@ def test_parser_with_invalid_commit(commit):
 
 @pytest.mark.parametrize("commit, expected", VALID_COMMITS)
 def test_parser_with_valid_commit(commit, expected):
-    parser = ConventionalCommitParser()
+    config = confuse.Configuration("Conventional", "conventional", read=False)
+    config.read(user=False)
+
+    parser = ConventionalCommitParser(config["parser"]["config"])
+
     change = parser.parse(commit)
 
     assert change == expected

@@ -1,0 +1,106 @@
+import asyncio
+import os
+import pathlib
+import subprocess
+from typing import Iterable
+
+import pytest
+
+from . import git
+
+
+def create_commit(path: pathlib.PurePath, message: str) -> None:
+    proc = subprocess.run(["git", "commit", "--allow-empty", "-m", message], cwd=path)
+
+    if proc.returncode:
+        raise RuntimeError(f"Git command failed with exit code: {proc.returncode}")
+
+
+def create_tag(path: pathlib.PurePath, name: str, message: str = None) -> None:
+    args = ["git", "tag"]
+    if message is not None:
+        args.extend(["-m", message])
+
+    args.append(name)
+    proc = subprocess.run(args, cwd=path)
+
+    if proc.returncode:
+        raise RuntimeError(f"Git command failed with exit code: {proc.returncode}")
+
+
+def get_commits(**kwargs) -> Iterable[git.Commit]:
+    async def _get_commits():
+        return [commit async for commit in git.get_commits(**kwargs)]
+
+    return asyncio.run(_get_commits())
+
+
+def get_tags(**kwargs) -> Iterable[git.Tag]:
+    async def _get_tags():
+        return [tag async for tag in git.get_tags(**kwargs)]
+
+    return asyncio.run(_get_tags())
+
+
+@pytest.fixture()
+def git_repository(tmp_path_factory) -> pathlib.PurePath:
+    path = tmp_path_factory.mktemp("git")
+    print(f"Git repository: {path.as_posix()}")
+
+    subprocess.run(["git", "init"], cwd=str(path))
+    return path
+
+
+def test_commit_list(git_repository: pathlib.PurePath) -> None:
+    create_commit(git_repository, "feat: A new feature")
+    create_commit(git_repository, "fix: And a minor fix")
+    create_commit(git_repository, "chore: A commit with a body\n\nThe body of the commit")
+
+    commits = list(get_commits(path=git_repository))
+    expected_commits = [
+        {"subject": "chore: A commit with a body", "body": "The body of the commit"},
+        {"subject": "fix: And a minor fix"},
+        {"subject": "feat: A new feature"},
+    ]
+
+    assert len(commits) == len(expected_commits)
+    for actual, expected in zip(commits, expected_commits):
+        assert expected == {k: v for k, v in actual.items() if k in expected}
+
+
+def test_commit_tags(git_repository: pathlib.PurePath) -> None:
+    create_commit(git_repository, "feat: Version A.B.C")
+    create_tag(git_repository, "vA.B.C")
+
+    create_commit(git_repository, "fix: And a minor fix")
+    create_tag(
+        git_repository,
+        "vA.B.C-1",
+        "Some commit message which makes this an annotated tag\n\nWith a body",
+    )
+
+    tags = list(get_tags(path=git_repository))
+    commits = list(get_commits(path=git_repository))
+
+    expected_tags = [
+        {"name": "vA.B.C", "object_name": commits[1]["rev"], "subject": "", "body": ""},
+        {
+            "name": "vA.B.C-1",
+            "object_name": commits[0]["rev"],
+            "subject": "Some commit message which makes this an annotated tag",
+            "body": "With a body",
+        },
+    ]
+
+    expected_commits = [
+        {"subject": "fix: And a minor fix", "tags": [expected_tags[1]]},
+        {"subject": "feat: Version A.B.C", "tags": [expected_tags[0]]},
+    ]
+
+    assert len(tags) == len(expected_tags)
+    for actual_tag, expected_tag in zip(tags, expected_tags):
+        assert expected_tag == {k: v for k, v in actual_tag.items() if k in expected_tag}
+
+    assert len(commits) == len(expected_commits)
+    for actual_commit, expected_commit in zip(commits, expected_commits):
+        assert expected_commit == {k: v for k, v in actual_commit.items() if k in expected_commit}

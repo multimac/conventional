@@ -1,9 +1,10 @@
 from re import Match
 from typing import Any, Dict, Iterable, Union
 
+import confuse
 import pytest
 
-from .parser import ConventionalCommitParser
+from .conventional_commits import ConventionalCommitParser
 
 INVALID_SUBJECT_REGEX = [
     ("spa ce: Type with space"),
@@ -153,14 +154,43 @@ VALID_FOOTER_REGEX = [
 ]
 
 POST_PROCESS_DATA = [
-    ({}, {"subject": {"breaking": False}}),
-    ({"subject": {"breaking": "!"}}, {"subject": {"breaking": True}}),
-    ({"subject": {"breaking": None}}, {"subject": {"breaking": False}}),
+    ({}, {"metadata": {"breaking": False, "closes": []}}),
+    (
+        {"subject": {"breaking": "!"}},
+        {"subject": {"breaking": "!"}, "metadata": {"breaking": True, "closes": []}},
+    ),
+    (
+        {"subject": {"breaking": None}},
+        {"subject": {"breaking": None}, "metadata": {"breaking": False, "closes": []}},
+    ),
     (
         {"body": {"footer": {"items": [{"key": "BREAKING CHANGE", "value": "Anything"}]}}},
         {
-            "subject": {"breaking": True},
+            "metadata": {"breaking": True, "closes": []},
             "body": {"footer": {"items": [{"key": "BREAKING CHANGE", "value": "Anything"}]}},
+        },
+    ),
+    (
+        {
+            "body": {
+                "footer": {
+                    "items": [
+                        {"key": "Closes", "value": "A-TICKET"},
+                        {"key": "Refs", "value": "B-TICKET"},
+                    ]
+                }
+            }
+        },
+        {
+            "metadata": {"breaking": False, "closes": ["A-TICKET", "B-TICKET"]},
+            "body": {
+                "footer": {
+                    "items": [
+                        {"key": "Closes", "value": "A-TICKET"},
+                        {"key": "Refs", "value": "B-TICKET"},
+                    ]
+                }
+            },
         },
     ),
 ]
@@ -168,7 +198,11 @@ POST_PROCESS_DATA = [
 
 @pytest.mark.parametrize("text", INVALID_SUBJECT_REGEX)
 def test_invalid_subject_regex(text: str) -> None:
-    parser = ConventionalCommitParser()
+    config = confuse.Configuration("Conventional", "conventional", read=False)
+    config.read(user=False)
+    config["parser"]["config"]["types"] = ["type", "hyp-hen"]
+
+    parser = ConventionalCommitParser(config["parser"]["config"])
     actual = parser.get_parsers()["subject"](text)
 
     assert actual is None
@@ -176,7 +210,11 @@ def test_invalid_subject_regex(text: str) -> None:
 
 @pytest.mark.parametrize("text", INVALID_FOOTER_REGEX)
 def test_invalid_footer_regex(text: str) -> None:
-    parser = ConventionalCommitParser()
+    config = confuse.Configuration("Conventional", "conventional", read=False)
+    config.read(user=False)
+    config["parser"]["config"]["types"] = ["type", "hyp-hen"]
+
+    parser = ConventionalCommitParser(config["parser"]["config"])
     actual = parser.get_parsers()["footer"](text)
 
     assert isinstance(actual, Iterable)
@@ -187,7 +225,11 @@ def test_invalid_footer_regex(text: str) -> None:
 
 @pytest.mark.parametrize("text, expected", VALID_SUBJECT_REGEX)
 def test_valid_subject_regex(text: str, expected: Union[Dict, Iterable[Dict], None]) -> None:
-    parser = ConventionalCommitParser()
+    config = confuse.Configuration("Conventional", "conventional", read=False)
+    config.read(user=False)
+    config["parser"]["config"]["types"] = ["type", "hyp-hen"]
+
+    parser = ConventionalCommitParser(config["parser"]["config"])
     actual = parser.get_parsers()["subject"](text)
 
     assert isinstance(actual, Match)
@@ -196,7 +238,11 @@ def test_valid_subject_regex(text: str, expected: Union[Dict, Iterable[Dict], No
 
 @pytest.mark.parametrize("text, expected", VALID_BODY_REGEX)
 def test_valid_body_regex(text: str, expected: Union[Dict, Iterable[Dict], None]) -> None:
-    parser = ConventionalCommitParser()
+    config = confuse.Configuration("Conventional", "conventional", read=False)
+    config.read(user=False)
+    config["parser"]["config"]["types"] = ["type", "hyp-hen"]
+
+    parser = ConventionalCommitParser(config["parser"]["config"])
     actual = parser.get_parsers()["body"](text)
 
     assert isinstance(actual, Match)
@@ -205,7 +251,11 @@ def test_valid_body_regex(text: str, expected: Union[Dict, Iterable[Dict], None]
 
 @pytest.mark.parametrize("text, expected", VALID_FOOTER_REGEX)
 def test_valid_footer_regex(text: str, expected: Union[Dict, Iterable[Dict], None]) -> None:
-    parser = ConventionalCommitParser()
+    config = confuse.Configuration("Conventional", "conventional", read=False)
+    config.read(user=False)
+    config["parser"]["config"]["types"] = ["type", "hyp-hen"]
+
+    parser = ConventionalCommitParser(config["parser"]["config"])
     actual = parser.get_parsers()["footer"](text)
 
     assert isinstance(actual, Iterable)
@@ -216,7 +266,11 @@ def test_valid_footer_regex(text: str, expected: Union[Dict, Iterable[Dict], Non
 
 @pytest.mark.parametrize("data, expected", POST_PROCESS_DATA)
 def test_post_process(data: Dict[str, Any], expected: Dict[str, Any]) -> None:
-    parser = ConventionalCommitParser()
+    config = confuse.Configuration("Conventional", "conventional", read=False)
+    config.read(user=False)
+    config["parser"]["config"]["types"] = ["type", "hyp-hen"]
+
+    parser = ConventionalCommitParser(config["parser"]["config"])
 
     actual = data.copy()
     parser.post_process(actual)

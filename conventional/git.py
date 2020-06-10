@@ -10,6 +10,8 @@ import dateutil.parser
 
 logger = logging.getLogger(__name__)
 
+delimiter = "----------delimiter----------"
+
 
 class Tag(TypedDict):
     name: str
@@ -103,7 +105,7 @@ async def _process_delimited_stream(
             buffer.write(remaining)
 
 
-async def is_git_repository() -> bool:
+async def is_git_repository(path: pathlib.PurePath = None) -> bool:
     args = [
         "git",
         "rev-parse",
@@ -111,30 +113,37 @@ async def is_git_repository() -> bool:
     ]
 
     logger.debug(f"Running command: {args}")
+    if path is not None:
+        logger.debug(f"  in {path.as_posix()}")
+
     proc = await asyncio.create_subprocess_exec(
-        *args, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+        *args, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL, cwd=path
     )
 
     await proc.communicate()
     return proc.returncode == 0
 
 
-async def get_commits(start: str = None, end: str = "HEAD",) -> AsyncIterable[Commit]:
+async def get_commits(
+    *,
+    start: str = None,
+    end: str = "HEAD",
+    path: pathlib.PurePath = None,
+) -> AsyncIterable[Commit]:
     """Get the commits between start and end."""
 
-    if not await is_git_repository():
+    if not await is_git_repository(path):
         logger.warning("Not a git repository.")
         return
 
     tags: Dict[str, List[Tag]] = {}
-    async for tag in get_tags():
+    async for tag in get_tags(path=path):
         name = tag["object_name"]
         if name not in tags:
             tags[name] = []
 
         tags[name].append(tag)
 
-    delimiter = "----------delimiter----------"
     fmt = "%x00".join([*get_commit_format(), delimiter])
 
     args = ["git", "log", f"--pretty=format:{fmt}"]
@@ -146,7 +155,7 @@ async def get_commits(start: str = None, end: str = "HEAD",) -> AsyncIterable[Co
 
     logger.debug(f"Running command: {args}")
     proc = await asyncio.create_subprocess_exec(
-        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, cwd=path
     )
 
     assert proc.stdout
@@ -157,8 +166,6 @@ async def get_commits(start: str = None, end: str = "HEAD",) -> AsyncIterable[Co
         commit = create_commit(*commit_fields)
 
         counter += 1
-        logger.debug(f"Read git commit: {commit['rev']}")
-
         if commit["rev"] in tags:
             commit["tags"] = tags[commit["rev"]]
 
@@ -169,23 +176,22 @@ async def get_commits(start: str = None, end: str = "HEAD",) -> AsyncIterable[Co
     await asyncio.gather(proc.wait())
 
 
-async def get_tags(ref: str = None) -> AsyncIterable[Tag]:
+async def get_tags(*, path: pathlib.PurePath = None, pattern: str = None) -> AsyncIterable[Tag]:
     """ Gets all tags in the repository. """
 
-    if not await is_git_repository():
+    if not await is_git_repository(path):
         logger.warning("Not a git repository.")
         return
 
-    delimiter = "----------delimiter----------"
     fmt = "%00".join([*get_tag_format(), delimiter])
     args = ["git", "tag", "--list", f"--format={fmt}"]
 
-    if ref is not None:
-        args.append(ref)
+    if pattern is not None:
+        args.append(pattern)
 
     logger.debug(f"Running command: {args}")
     proc = await asyncio.create_subprocess_exec(
-        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, cwd=path
     )
 
     if proc.stdout:
@@ -195,7 +201,6 @@ async def get_tags(ref: str = None) -> AsyncIterable[Tag]:
             tag = create_tag(*tag_fields)
 
             counter += 1
-            logger.debug(f"Read git tag: {tag['name']} ({tag['object_name']})")
             yield tag
 
         logger.debug(f"Read {counter} tags from repository")

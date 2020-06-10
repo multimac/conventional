@@ -2,13 +2,16 @@ import importlib
 import io
 import logging
 import pathlib
+from typing import Optional
 
 import click
 import click_log
+import confuse
 
 logger = logging.getLogger()
 click_log.basic_config(logger)
 
+pass_config = click.make_pass_decorator(confuse.Configuration)
 plugin_module = "commands"
 
 
@@ -33,7 +36,9 @@ class PluggableCli(click.MultiCommand):
 
 @click.command(cls=PluggableCli)
 @click_log.simple_verbosity_option(logger)
-def main() -> None:
+@click.option("--config-file", type=click.Path(exists=True, dir_okay=False))
+@click.pass_context
+def main(ctx: click.Context, config_file: Optional[click.Path]) -> None:
     """
     This commandline program provides a series of commands for validating and
     updating stacks in CloudFormation. The config file specified via '--config'
@@ -58,6 +63,13 @@ def main() -> None:
     \b
     main.py -c "cloudformation-config.yml" -g "development" stacks update --ami ami-01234567890123456 get-events --exit-code
     """
+
+    config = confuse.Configuration("Conventional", "conventional")
+
+    if config_file is not None:
+        config.set_file(config_file)
+
+    ctx.obj = config
 
 
 if __name__ == "__main__":

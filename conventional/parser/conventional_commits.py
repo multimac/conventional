@@ -1,5 +1,7 @@
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, TypedDict
+from typing import Any, Callable, Dict, Iterable, List, Optional, Pattern, TypedDict
+
+import confuse
 
 from conventional.parser.base import ParsedItem, Parser, ParserCollection, ParseResult
 
@@ -16,7 +18,7 @@ class FooterList(ParsedItem):
 class Subject(ParsedItem):
     type: str
     scope: str
-    breaking: bool
+    breaking: str
     message: str
 
 
@@ -25,16 +27,19 @@ class Body(ParsedItem):
     footer: FooterList
 
 
+class Metadata(ParsedItem):
+    breaking: bool
+    closes: Iterable[str]
+
+
 class Change(TypedDict):
     subject: Subject
     body: Body
 
+    metadata: Metadata
+
 
 class ConventionalCommitParser(Parser[Change]):
-
-    _subject_regex = re.compile(
-        r"^(?P<type>[\w-]+)(?:\((?P<scope>[\w-]+)\))?(?P<breaking>!)?:[ \t]+(?P<message>.+)$"
-    )
 
     _footer_test_regex = "(?:[\w-]+|BREAKING CHANGE)(?:: | #)\w"
     _body_regex = re.compile(
@@ -46,16 +51,18 @@ class ConventionalCommitParser(Parser[Change]):
         fr"(?:^|\n)(?P<key>([\w-]+|BREAKING CHANGE))(?:: | #)(?P<value>\w(?:.|\n(?!{_footer_test_regex}))*)"
     )
 
-    def __init__(self) -> None:
+    def _get_subject_regex(self, types: Iterable[str]) -> Pattern:
+        return re.compile(
+            fr"^(?P<type>({'|'.join(types)}))(?:\((?P<scope>[\w-]+)\))?(?P<breaking>!)?:[ \t]+(?P<message>.+)$"
+        )
+
+    def __init__(self, config: confuse.ConfigView) -> None:
+        subject_regex = self._get_subject_regex(config["types"].get(confuse.StrSeq()))
         self._parsers: ParserCollection = {
-            "subject": self._parse_subject,
+            "subject": lambda text: subject_regex.match(text),
             "body": lambda text: self._body_regex.match(text),
             "footer": lambda text: self._footer_regex.finditer(text),
         }
-
-    def _parse_subject(self, text: str) -> ParseResult:
-        result = self._subject_regex.match(text)
-        return result
 
     def get_parsers(self) -> ParserCollection:
         return self._parsers
@@ -64,8 +71,11 @@ class ConventionalCommitParser(Parser[Change]):
         return bool(data.get("subject", {}).get("type", False))
 
     def post_process(self, data: Dict[str, Any]) -> None:
-        subject = data.setdefault("subject", {})
+        metadata = data.setdefault("metadata", {})
         footers = data.get("body", {}).get("footer", {}).get("items", [])
+        subject = data.get("subject", {})
 
         breaking_change = any(f["key"] == "BREAKING CHANGE" for f in footers)
-        subject["breaking"] = bool(subject.get("breaking")) or breaking_change
+        metadata["breaking"] = bool(subject.get("breaking")) or breaking_change
+
+        metadata["closes"] = list(f["value"] for f in footers if f["key"] in ("Closes", "Refs"))

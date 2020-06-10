@@ -5,13 +5,14 @@ import io
 import json
 import logging
 import os
-from typing import List, TextIO
+from typing import List, Optional, TextIO
 
 import click
+import confuse
 import dateutil.tz
 
 from .. import git, util
-from ..parser.conventionalcommits.parser import ConventionalCommitParser
+from ..main import pass_config
 from . import parse_commit
 
 logger = logging.getLogger(__name__)
@@ -24,26 +25,36 @@ logger = logging.getLogger(__name__)
     default="-",
     help="A file to write commits to. If `-`, commits will be written to stdout.",
 )
+@click.option("--from", "from_rev")
+@click.option("--to", "to_rev", default="HEAD")
 @click.option("--parse", is_flag=True, help="If set, commits will be parsed with `parse-commit`.")
 @click.option(
-    "--include-unparsed",
+    "--include-unparsed/--no-include-unparsed",
     is_flag=True,
+    default=None,
     help="If set, commits which fail to be parsed will be returned. See `parse-commit`.",
 )
-def main(**kwargs):
-    asyncio.run(async_main(**kwargs))
+@pass_config
+def main(config: confuse.Configuration, **kwargs):
+    asyncio.run(async_main(config, **kwargs))
 
 
-async def async_main(output: TextIO, **kwargs) -> None:
+async def async_main(config: confuse.Configuration, *, output: TextIO, **kwargs) -> None:
     try:
-        await async_main_impl(output=output, **kwargs)
+        await async_main_impl(config, output=output, **kwargs)
     finally:
         output.close()
 
 
-async def async_main_impl(output: TextIO, parse: bool, include_unparsed: bool) -> None:
-    parser = ConventionalCommitParser()
-
+async def async_main_impl(
+    config: confuse.Configuration,
+    *,
+    output: TextIO,
+    from_rev: Optional[str],
+    to_rev: str,
+    parse: bool,
+    include_unparsed: Optional[bool]
+) -> None:
     def _json_serial(obj):
         """JSON serializer for objects not serializable by default json code"""
 
@@ -61,7 +72,7 @@ async def async_main_impl(output: TextIO, parse: bool, include_unparsed: bool) -
     if parse:
         parse_input, parse_output = util.create_pipe_streams()
         parse_task = parse_commit.async_main(
-            parse_input, output, include_unparsed=include_unparsed
+            config, input=parse_input, output=output, include_unparsed=include_unparsed
         )
 
         logger.debug("Scheduling parse-commit task")
@@ -72,7 +83,7 @@ async def async_main_impl(output: TextIO, parse: bool, include_unparsed: bool) -
     try:
         counter = 0
 
-        async for commit in git.get_commits():
+        async for commit in git.get_commits(start=from_rev, end=to_rev):
             line = json.dumps(commit, default=_json_serial)
             await loop.run_in_executor(None, output.writelines, [line, "\n"])
     except:
