@@ -6,6 +6,7 @@ import pathlib
 from asyncio import IncompleteReadError, LimitOverrunError, StreamReader
 from typing import AsyncIterable, BinaryIO, Dict, Iterable, List, Optional, TypedDict, cast
 
+import aiocache
 import dateutil.parser
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,7 @@ async def _process_delimited_stream(
             buffer.write(remaining)
 
 
+@aiocache.cached()
 async def is_git_repository(path: pathlib.PurePath = None) -> bool:
     args = [
         "git",
@@ -121,14 +123,13 @@ async def is_git_repository(path: pathlib.PurePath = None) -> bool:
     )
 
     await proc.communicate()
+    await proc.wait()
+
     return proc.returncode == 0
 
 
 async def get_commits(
-    *,
-    start: str = None,
-    end: str = "HEAD",
-    path: pathlib.PurePath = None,
+    *, start: str = None, end: str = "HEAD", path: pathlib.PurePath = None, reverse: bool = False,
 ) -> AsyncIterable[Commit]:
     """Get the commits between start and end."""
 
@@ -137,7 +138,7 @@ async def get_commits(
         return
 
     tags: Dict[str, List[Tag]] = {}
-    async for tag in get_tags(path=path):
+    for tag in await get_tags(path=path):
         name = tag["object_name"]
         if name not in tags:
             tags[name] = []
@@ -145,8 +146,10 @@ async def get_commits(
         tags[name].append(tag)
 
     fmt = "%x00".join([*get_commit_format(), delimiter])
-
     args = ["git", "log", f"--pretty=format:{fmt}"]
+
+    if reverse:
+        args.append("--reverse")
 
     if start:
         args.append(f"{start}..{end}")
@@ -173,18 +176,26 @@ async def get_commits(
 
     logger.debug(f"Read {counter} commits from repository")
 
-    await asyncio.gather(proc.wait())
+    await proc.wait()
+    logger.debug(f"Command exit code: {proc.returncode}")
 
 
-async def get_tags(*, path: pathlib.PurePath = None, pattern: str = None) -> AsyncIterable[Tag]:
+@aiocache.cached()
+async def get_tags(
+    *, path: pathlib.PurePath = None, pattern: str = None, sort: str = None, reverse: bool = False
+) -> Iterable[Tag]:
     """ Gets all tags in the repository. """
 
     if not await is_git_repository(path):
         logger.warning("Not a git repository.")
-        return
+        return []
 
     fmt = "%00".join([*get_tag_format(), delimiter])
     args = ["git", "tag", "--list", f"--format={fmt}"]
+
+    if sort is not None:
+        sort = sort if not reverse else "-" + sort
+        args.append(f"--sort={sort}")
 
     if pattern is not None:
         args.append(pattern)
@@ -194,15 +205,18 @@ async def get_tags(*, path: pathlib.PurePath = None, pattern: str = None) -> Asy
         *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, cwd=path
     )
 
-    if proc.stdout:
-        counter = 0
-        async for tag_data in _process_delimited_stream(proc.stdout, delimiter):
-            tag_fields = tag_data[:-1].split("\x00")
-            tag = create_tag(*tag_fields)
+    assert proc.stdout
 
-            counter += 1
-            yield tag
+    tags: List[Tag] = []
+    async for tag_data in _process_delimited_stream(proc.stdout, delimiter):
+        tag_fields = tag_data[:-1].split("\x00")
+        tag = create_tag(*tag_fields)
 
-        logger.debug(f"Read {counter} tags from repository")
+        tags.append(tag)
+
+    logger.debug(f"Read {len(tags)} tags from repository")
 
     await proc.wait()
+    logger.debug(f"Command exit code: {proc.returncode}")
+
+    return tags

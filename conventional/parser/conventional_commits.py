@@ -15,7 +15,7 @@ class FooterList(ParsedItem):
     items: Iterable[Footer]
 
 
-class Subject(ParsedItem):
+class Subject(ParsedItem, total=False):
     type: str
     scope: str
     breaking: str
@@ -27,7 +27,7 @@ class Body(ParsedItem):
     footer: FooterList
 
 
-class Metadata(ParsedItem):
+class Metadata(TypedDict):
     breaking: bool
     closes: Iterable[str]
 

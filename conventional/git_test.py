@@ -6,40 +6,9 @@ from typing import Iterable
 
 import pytest
 
-from . import git
+from . import git, util
 
-
-def create_commit(path: pathlib.PurePath, message: str) -> None:
-    proc = subprocess.run(["git", "commit", "--allow-empty", "-m", message], cwd=path)
-
-    if proc.returncode:
-        raise RuntimeError(f"Git command failed with exit code: {proc.returncode}")
-
-
-def create_tag(path: pathlib.PurePath, name: str, message: str = None) -> None:
-    args = ["git", "tag"]
-    if message is not None:
-        args.extend(["-m", message])
-
-    args.append(name)
-    proc = subprocess.run(args, cwd=path)
-
-    if proc.returncode:
-        raise RuntimeError(f"Git command failed with exit code: {proc.returncode}")
-
-
-def get_commits(**kwargs) -> Iterable[git.Commit]:
-    async def _get_commits():
-        return [commit async for commit in git.get_commits(**kwargs)]
-
-    return asyncio.run(_get_commits())
-
-
-def get_tags(**kwargs) -> Iterable[git.Tag]:
-    async def _get_tags():
-        return [tag async for tag in git.get_tags(**kwargs)]
-
-    return asyncio.run(_get_tags())
+pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture()
@@ -51,12 +20,12 @@ def git_repository(tmp_path_factory) -> pathlib.PurePath:
     return path
 
 
-def test_commit_list(git_repository: pathlib.PurePath) -> None:
-    create_commit(git_repository, "feat: A new feature")
-    create_commit(git_repository, "fix: And a minor fix")
-    create_commit(git_repository, "chore: A commit with a body\n\nThe body of the commit")
+async def test_commit_list(git_repository: pathlib.PurePath) -> None:
+    util.create_commit(git_repository, "feat: A new feature")
+    util.create_commit(git_repository, "fix: And a minor fix")
+    util.create_commit(git_repository, "chore: A commit with a body\n\nThe body of the commit")
 
-    commits = list(get_commits(path=git_repository))
+    commits = [commit async for commit in git.get_commits(path=git_repository)]
     expected_commits = [
         {"subject": "chore: A commit with a body", "body": "The body of the commit"},
         {"subject": "fix: And a minor fix"},
@@ -68,19 +37,19 @@ def test_commit_list(git_repository: pathlib.PurePath) -> None:
         assert expected == {k: v for k, v in actual.items() if k in expected}
 
 
-def test_commit_tags(git_repository: pathlib.PurePath) -> None:
-    create_commit(git_repository, "feat: Version A.B.C")
-    create_tag(git_repository, "vA.B.C")
+async def test_commit_tags(git_repository: pathlib.PurePath) -> None:
+    util.create_commit(git_repository, "feat: Version A.B.C")
+    util.create_tag(git_repository, "vA.B.C")
 
-    create_commit(git_repository, "fix: And a minor fix")
-    create_tag(
+    util.create_commit(git_repository, "fix: And a minor fix")
+    util.create_tag(
         git_repository,
         "vA.B.C-1",
         "Some commit message which makes this an annotated tag\n\nWith a body",
     )
 
-    tags = list(get_tags(path=git_repository))
-    commits = list(get_commits(path=git_repository))
+    tags = await git.get_tags(path=git_repository)
+    commits = [commit async for commit in git.get_commits(path=git_repository)]
 
     expected_tags = [
         {"name": "vA.B.C", "object_name": commits[1]["rev"], "subject": "", "body": ""},

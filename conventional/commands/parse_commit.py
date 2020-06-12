@@ -9,16 +9,16 @@ import click
 import confuse
 import dateutil.tz
 
-from .. import git
+from .. import git, util
 from ..main import pass_config
 from ..parser.base import Parser
 
 logger = logging.getLogger(__name__)
 
 
-class ParsedCommit(TypedDict, total=False):
-    commit: git.Commit
-    parsed: Any
+class Change(TypedDict, total=False):
+    source: git.Commit
+    data: Any
 
 
 @click.command()
@@ -45,32 +45,13 @@ def main(config: confuse.Configuration, **kwargs):
     asyncio.run(async_main(config, **kwargs))
 
 
-async def async_main(
-    config: confuse.Configuration,
-    *,
-    input: TextIO,
-    output: TextIO,
-    include_unparsed: Optional[bool],
+async def async_main(config: confuse.Configuration, **kwargs) -> None:
+    await async_main_impl(config, **kwargs)
+
+
+async def async_main_impl(
+    config: confuse.Configuration, *, input: TextIO, output: TextIO, include_unparsed: bool
 ) -> None:
-    if include_unparsed is not None:
-        config.set_args({"parser.include-unparsed": include_unparsed}, dots=True)
-
-    try:
-        await async_main_impl(config, input=input, output=output)
-    finally:
-        input.close()
-        output.close()
-
-
-async def async_main_impl(config: confuse.Configuration, *, input: TextIO, output: TextIO) -> None:
-    def _json_serial(obj):
-        """JSON serializer for objects not serializable by default json code"""
-
-        if isinstance(obj, (datetime.datetime, datetime.date)):
-            return obj.astimezone(dateutil.tz.UTC).isoformat()
-
-        raise TypeError("Type %s not serializable" % type(obj))
-
     def _load_parser(config: confuse.Configuration) -> Parser[Any]:
         parser_config = config["parser"]
         module = parser_config["module"].get(str)
@@ -89,14 +70,14 @@ async def async_main_impl(config: confuse.Configuration, *, input: TextIO, outpu
             break
 
         commit: git.Commit = git.create_commit(**json.loads(input_line))
-        parsed: Any = parser.parse(commit)
+        data: Any = parser.parse(commit)
 
-        if not config["parser"]["include-unparsed"].get(bool) and not parsed:
+        if not include_unparsed and not data:
             continue
 
-        data: ParsedCommit = {"commit": commit}
-        if parsed:
-            data["parsed"] = parsed
+        change: Change = {"source": commit}
+        if data:
+            change["data"] = data
 
-        line = json.dumps(data, default=_json_serial)
+        line = json.dumps(change, default=util.json_defaults)
         await loop.run_in_executor(None, output.writelines, [line, "\n"])

@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
     help="A file to write commits to. If `-`, commits will be written to stdout.",
 )
 @click.option("--from", "from_rev")
+@click.option("--from-last-tag", is_flag=True)
 @click.option("--to", "to_rev", default="HEAD")
+@click.option("--reverse", is_flag=True)
 @click.option("--parse", is_flag=True, help="If set, commits will be parsed with `parse-commit`.")
 @click.option(
     "--include-unparsed/--no-include-unparsed",
@@ -39,58 +41,66 @@ def main(config: confuse.Configuration, **kwargs):
     asyncio.run(async_main(config, **kwargs))
 
 
-async def async_main(config: confuse.Configuration, *, output: TextIO, **kwargs) -> None:
-    try:
-        await async_main_impl(config, output=output, **kwargs)
-    finally:
-        output.close()
+async def async_main(config: confuse.Configuration, **kwargs) -> None:
+    await async_main_impl(config, **kwargs)
 
 
 async def async_main_impl(
     config: confuse.Configuration,
     *,
     output: TextIO,
-    from_rev: Optional[str],
-    to_rev: str,
     parse: bool,
-    include_unparsed: Optional[bool]
+    include_unparsed: Optional[bool],
+    **kwargs,
 ) -> None:
-    def _json_serial(obj):
-        """JSON serializer for objects not serializable by default json code"""
-
-        if isinstance(obj, (datetime.datetime, datetime.date)):
-            return obj.astimezone(dateutil.tz.UTC).isoformat()
-
-        raise TypeError("Type %s not serializable" % type(obj))
 
     if include_unparsed and not parse:
         logger.warning("--include-unparsed is ignored without --parse")
 
+    if not parse:
+        await list_commits(config, output=output, **kwargs)
+        return
+
+    async def _list_commits(fd: int) -> None:
+        async with util.AsyncFileObject(os.fdopen(fd, "w")) as list_output:
+            await list_commits(config, output=list_output, **kwargs)
+
+    async def _parse_commit(fd: int) -> None:
+        async with util.AsyncFileObject(os.fdopen(fd)) as parse_input:
+            await parse_commit.async_main(
+                config, input=parse_input, output=output, include_unparsed=include_unparsed
+            )
+
+    read_fd, write_fd = os.pipe()
+    list_task = _list_commits(write_fd)
+    parse_task = _parse_commit(read_fd)
+
+    await asyncio.gather(list_task, parse_task)
+
+
+async def list_commits(
+    config: confuse.Configuration,
+    *,
+    output: TextIO,
+    from_rev: Optional[str],
+    from_last_tag: bool,
+    to_rev: str,
+    reverse: bool,
+) -> None:
+    if from_last_tag:
+        if from_rev is not None:
+            logger.warning("--from-last-tag is ignored when combined with --from")
+        else:
+            excluded = config["tags"]["exclude"].get(confuse.StrSeq())
+            try:
+                tag_filter = config["tags"]["filter"].get(str)
+            except confuse.NotFoundError:
+                tag_filter = None
+
+            tags = await git.get_tags(pattern=tag_filter, sort="creatordate", reverse=True)
+            from_rev = next(tag["name"] for tag in tags if tag["name"] not in excluded)
+
     loop = asyncio.get_event_loop()
-
-    tasks: List[asyncio.Task] = []
-    if parse:
-        parse_input, parse_output = util.create_pipe_streams()
-        parse_task = parse_commit.async_main(
-            config, input=parse_input, output=output, include_unparsed=include_unparsed
-        )
-
-        logger.debug("Scheduling parse-commit task")
-        tasks.append(asyncio.create_task(parse_task))
-        output = parse_output
-
-    gathered_tasks = asyncio.gather(*tasks)
-    try:
-        counter = 0
-
-        async for commit in git.get_commits(start=from_rev, end=to_rev):
-            line = json.dumps(commit, default=_json_serial)
-            await loop.run_in_executor(None, output.writelines, [line, "\n"])
-    except:
-        gathered_tasks.cancel()
-        raise
-    finally:
-        output.close()
-
-        with contextlib.suppress(asyncio.CancelledError):
-            await gathered_tasks
+    async for commit in git.get_commits(start=from_rev, end=to_rev, reverse=reverse):
+        line = json.dumps(commit, default=util.json_defaults)
+        await loop.run_in_executor(None, output.writelines, [line, "\n"])
