@@ -1,6 +1,6 @@
 # Changelog
 
-{%- with types = config["types"] | read_config({}, dict) %}
+{%- with types = config["type-headings"] | read_config({}, dict) %}
 
 {%- for tag, version in versions if version.has_commits() %}
 
@@ -8,7 +8,7 @@
 
 {%- for type, changes in version.items() if type is not none and type in types %}
 
-### {{ config["types"][type] | read_config }}
+### {{ config["type-headings"][type] | read_config }}
 
 {%- for change in changes if "data" in change %}
 
@@ -19,11 +19,11 @@
 
 {#- #} {{ change["data"]["subject"]["message"] }}
 
-{%- with pattern = config["commit-pattern"] | read_config(None) %}
+{%- with pattern = config["commit-link-pattern"] | read_config(None) %}
 {%- if pattern is not none %} ([{{ change["source"]["short_rev"] }}]({{ pattern.format(commit=change["source"]["rev"]) }})){% endif %}
 {%- endwith %}
 
-{%- with pattern = config["issue-pattern"] | read_config(None) %}
+{%- with pattern = config["issue-link-pattern"] | read_config(None) %}
 {%- if pattern is not none and change["data"]["metadata"]["closes"] %}, closes
 {%- for issue in change["data"]["metadata"]["closes"] %} [{{ issue }}]({{ pattern.format(issue=issue) }}){% endfor %}
 {%- endif %}

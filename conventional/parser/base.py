@@ -6,7 +6,6 @@ from typing import (
     Dict,
     Generic,
     Iterable,
-    List,
     Optional,
     TypedDict,
     TypeVar,

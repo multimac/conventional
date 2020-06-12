@@ -1,0 +1,4 @@
+template:
+  config:
+    commit-link-pattern: https://github.com/multimac/conventional/commit/{commit}
+    issue-link-pattern: https://github.com/multimac/conventional/issues/{issue}

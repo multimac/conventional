@@ -1,9 +1,9 @@
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, Pattern, TypedDict
+from typing import Any, Dict, Iterable, Pattern, TypedDict
 
 import confuse
 
-from conventional.parser.base import ParsedItem, Parser, ParserCollection, ParseResult
+from conventional.parser.base import ParsedItem, Parser, ParserCollection
 
 
 class Footer(TypedDict):

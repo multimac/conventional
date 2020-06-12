@@ -1,20 +1,42 @@
+# Configuration specific to the parsing of commits in a repository.
 parser:
+  # `parser.module` and `parser.class` define the implementation of
+  # `conventional.parser.Parser` to use when parsing commits.
   module: conventional.parser.conventional_commits
-  name: ConventionalCommitParser
+  class: ConventionalCommitParser
 
+  # Configuration specific to the parser defined by `parser.module` + `parser.class`,
+  # in this case the configuration is for the `ConventionalCommitParser`.
   config:
+    # The types to allow when parsing commits using the "Conventional Commits"
+    # standard. If a commit uses a type not specified in this list, it will
+    # fail to be parsed.
     types: [build, chore, ci, docs, feat, fix, perf, refactor, style, test]
 
 tags:
+  # A list of tags to exclude.
   exclude: []
 
+  # A glob-style pattern to match tags against. Internally, fnmatch is used
+  # to compare the name of the tag to the filter specified here.
+  filter: "*"
+
 template:
+  # `template.package` and `template.name` define the Jinja2 template to use
+  # when rendering the commits.
   package: conventional
   name: changelog.md
 
+  # If `True`, unparsed commits will be included when rendering the template.
   include-unparsed: false
 
+  # Configuration specific to the template defined by `template.package` + `template.name`
+  # (see https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.PackageLoader) in this
+  # case the configuration is for the `changelog.md` template.
   config:
-    types:
+    # Mapping of types (parsed from git commits) to the headings to use when listing them
+    # in the changelog. If a type is missing from this list, commits using that type will 
+    # not be added to the changelog.
+    type-headings:
       feat: Features
       fix: Fixes

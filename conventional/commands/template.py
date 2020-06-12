@@ -1,19 +1,16 @@
 import asyncio
-import contextlib
-import datetime
 import fnmatch
 import json
 import logging
 import os
-from typing import Any, AsyncIterable, Dict, List, Optional, TextIO, Tuple, cast
+import pathlib
+from typing import Dict, List, Optional, TextIO, Tuple, cast
 
-import click
 import confuse
-import dateutil.tz
 import jinja2
+import typer
 
 from .. import git, util
-from ..main import pass_config
 from . import list_commits
 from .parse_commit import Change
 
@@ -33,41 +30,17 @@ class Version(Dict[Optional[str], List[Change]]):
         return [commit for commits in self.values() for commit in commits]
 
 
-@click.command()
-@click.option("--input", type=click.File("r"), default=None)
-@click.option("--output", type=click.File("w"), default="-")
-@click.option("--tag-filter", type=str)
-@click.option(
-    "--include-unparsed/--no-include-unparsed",
-    is_flag=True,
-    default=None,
-    help="If set, commits which fail to be parsed will be returned. See `parse-commit`.",
-)
-@pass_config
-def main(config: confuse.Configuration, **kwargs):
-    asyncio.run(async_main(config, **kwargs))
-
-
-async def async_main(
+async def main(
     config: confuse.Configuration,
     *,
     input: Optional[TextIO],
     output: TextIO,
-    tag_filter: Optional[str],
-    **kwargs,
-) -> None:
-    if tag_filter is not None:
-        config.set_args({"template.tags.filter": tag_filter}, dots=True)
-
-    await async_main_impl(config, input=input, output=output, **kwargs)
-
-
-async def async_main_impl(
-    config: confuse.Configuration, *, input: Optional[TextIO], output: TextIO, **kwargs,
+    include_unparsed: bool,
+    path: Optional[pathlib.Path],
 ) -> None:
 
     if input is not None:
-        await template(config, input=input, output=output, **kwargs)
+        await template(config, input=input, output=output, include_unparsed=include_unparsed)
         return
 
     async def _list_commits(fd: int) -> None:
@@ -89,7 +62,7 @@ async def async_main_impl(
                 else:
                     logger.debug(f"Retrieving commits from, {from_rev}, to, {to_rev}")
 
-                await list_commits.async_main(
+                await list_commits.main(
                     config,
                     output=list_output,
                     parse=True,
@@ -98,13 +71,14 @@ async def async_main_impl(
                     from_last_tag=False,
                     to_rev=to_rev,
                     reverse=True,
+                    path=path,
                 )
 
                 to_rev = from_rev
 
             logger.debug(f"Retrieving remaining commits since {to_rev}")
 
-            await list_commits.async_main(
+            await list_commits.main(
                 config,
                 output=list_output,
                 parse=True,
@@ -113,11 +87,14 @@ async def async_main_impl(
                 from_last_tag=False,
                 to_rev=to_rev,
                 reverse=True,
+                path=path,
             )
 
     async def _template(fd: int) -> None:
         async with util.AsyncFileObject(os.fdopen(fd, "r")) as template_input:
-            await template(config, input=template_input, output=output, **kwargs)
+            await template(
+                config, input=template_input, output=output, include_unparsed=include_unparsed
+            )
 
     read_fd, write_fd = os.pipe()
     list_task = _list_commits(write_fd)
