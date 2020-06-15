@@ -1,8 +1,8 @@
 # Conventional
 
-## About
-
 Conventional is an extensible command-line tool for parsing and processing structured commits. It comes with support for the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) standard, but can be extended to support any other commit formats.
+
+See [CHANGELOG.md](CHANGELOG.md) for an example of the kind of features supported by this tool.
 
 ## Requirements
 

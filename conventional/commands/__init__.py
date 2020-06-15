@@ -1,9 +1,8 @@
 from asyncio import run
-from pathlib import Path
 from typing import Optional
 
 from confuse import Configuration
-from typer import Argument, Context, FileText, Option, Typer
+from typer import Context, FileText, Option, Typer
 
 group = Typer()
 
@@ -38,7 +37,6 @@ def _list_commits(
         False,
         help="If set, commits which fail to be parsed will be included in the output. See `parse-commit`.",
     ),
-    path: Optional[Path] = Argument(None),
 ) -> None:
     """
     Retrieves commits from the git repository at PATH, or the current directory if PATH is not provided.
@@ -56,7 +54,6 @@ def _list_commits(
             reverse=reverse,
             parse=parse,
             include_unparsed=include_unparsed,
-            path=path,
         )
     )
 
@@ -110,7 +107,9 @@ def _template(
         False,
         help="If set, commits which fail to be parsed will be returned. See `parse-commit`.",
     ),
-    path: Optional[Path] = Argument(None),
+    unreleased_version: str = Option(
+        None, help="If set, will be used as the tag name for unreleased commits."
+    ),
 ) -> None:
     """
     Reads a stream of commits from the given file or stdin and uses them to render a template.
@@ -124,6 +123,6 @@ def _template(
             input=input,
             output=output,
             include_unparsed=include_unparsed,
-            path=path,
+            unreleased_version=unreleased_version,
         )
     )

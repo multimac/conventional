@@ -1,14 +1,12 @@
-import json
-
 import confuse
 import pytest
 
-from ..git import create_commit
+from ..git import _create_commit
 from .conventional_commits import ConventionalCommitParser
 
 INVALID_COMMITS = [
     (
-        create_commit(
+        _create_commit(
             "f7c03766efd3469cbfdd40b3188b90f7354dd461",
             "f7c0376",
             "A commit not matching the conventional commit standard",
@@ -31,7 +29,7 @@ INVALID_PARSER_DATA = [
 
 VALID_COMMITS = [
     (
-        create_commit(
+        _create_commit(
             "f7c03766efd3469cbfdd40b3188b90f7354dd461",
             "f7c0376",
             "feat(somewhere): Test Commit",
@@ -55,7 +53,7 @@ VALID_COMMITS = [
         },
     ),
     (
-        create_commit(
+        _create_commit(
             "f7c03766efd3469cbfdd40b3188b90f7354dd461",
             "f7c0376",
             "feat(somewhere): Test Commit",

@@ -3,14 +3,13 @@ import fnmatch
 import json
 import logging
 import os
-import pathlib
-from typing import Dict, List, Optional, TextIO, Tuple, cast
+from typing import Any, Dict, List, Optional, TextIO, Tuple, cast
 
 import confuse
 import jinja2
-import typer
 
-from .. import git, util
+from .. import git
+from ..util.io import AsyncFileObject
 from . import list_commits
 from .parse_commit import Change
 
@@ -36,29 +35,35 @@ async def main(
     input: Optional[TextIO],
     output: TextIO,
     include_unparsed: bool,
-    path: Optional[pathlib.Path],
+    unreleased_version: Optional[str],
 ) -> None:
 
     if input is not None:
-        await template(config, input=input, output=output, include_unparsed=include_unparsed)
+        await template(
+            config,
+            input=input,
+            output=output,
+            include_unparsed=include_unparsed,
+            unreleased_version=unreleased_version,
+        )
         return
 
     async def _list_commits(fd: int) -> None:
-        async with util.AsyncFileObject(os.fdopen(fd, "w")) as list_output:
+        async with AsyncFileObject(os.fdopen(fd, "w")) as list_output:
             excluded = config["tags"]["exclude"].get(confuse.StrSeq())
             try:
                 tag_filter = config["tags"]["filter"].get(str)
             except confuse.NotFoundError:
                 tag_filter = None
 
-            to_rev = "HEAD"
-            for tag in await git.get_tags(pattern=tag_filter, sort="creatordate", reverse=True):
+            from_rev = None
+            for tag in await git.get_tags(pattern=tag_filter, sort="creatordate"):
                 if tag["name"] in excluded:
                     continue
 
-                from_rev = tag["name"]
+                to_rev = tag["name"]
                 if to_rev == "HEAD":
-                    logger.debug(f"Retrieving commits up until, {from_rev}")
+                    logger.debug(f"Retrieving commits up until, {to_rev}")
                 else:
                     logger.debug(f"Retrieving commits from, {from_rev}, to, {to_rev}")
 
@@ -71,29 +76,32 @@ async def main(
                     from_last_tag=False,
                     to_rev=to_rev,
                     reverse=True,
-                    path=path,
                 )
 
-                to_rev = from_rev
+                from_rev = to_rev
 
-            logger.debug(f"Retrieving remaining commits since {to_rev}")
+            logger.debug(f"Retrieving remaining commits since {from_rev}")
+            to_rev = "HEAD"
 
             await list_commits.main(
                 config,
                 output=list_output,
                 parse=True,
                 include_unparsed=True,
-                from_rev=None,
+                from_rev=from_rev,
                 from_last_tag=False,
                 to_rev=to_rev,
                 reverse=True,
-                path=path,
             )
 
     async def _template(fd: int) -> None:
-        async with util.AsyncFileObject(os.fdopen(fd, "r")) as template_input:
+        async with AsyncFileObject(os.fdopen(fd, "r")) as template_input:
             await template(
-                config, input=template_input, output=output, include_unparsed=include_unparsed
+                config,
+                input=template_input,
+                output=output,
+                include_unparsed=include_unparsed,
+                unreleased_version=unreleased_version,
             )
 
     read_fd, write_fd = os.pipe()
@@ -104,9 +112,17 @@ async def main(
 
 
 async def template(
-    config: confuse.Configuration, *, input: TextIO, output: TextIO, include_unparsed: bool,
+    config: confuse.Configuration,
+    *,
+    input: TextIO,
+    output: TextIO,
+    include_unparsed: bool,
+    unreleased_version: Optional[str],
 ) -> None:
-    def _read_config(view, default=DEFAULT, typ=str):
+    def _is_unreleased(tag: Optional[git.Tag]) -> bool:
+        return tag is None or tag["name"] == unreleased_version
+
+    def _read_config(view: confuse.ConfigView, default: Any = DEFAULT, typ=str) -> Any:
         try:
             return view.get(typ)
         except confuse.NotFoundError:
@@ -168,9 +184,24 @@ async def template(
 
     if version.has_commits():
         logger.debug(f"Found {len(version.get_commits())} unreleased commit(s)")
-        versions.append((None, version))
+
+        unreleased_tag: Optional[git.Tag] = None
+        if unreleased_version is not None:
+            logger.debug(f"Using {unreleased_version} as the version for unreleased commit(s)")
+            unreleased_tag = {
+                "name": unreleased_version,
+                "object_name": "",
+                "subject": "",
+                "body": "",
+            }
+
+        versions.append((unreleased_tag, version))
 
     logger.debug(f"{len(versions)} versions found")
+
+    # Reverse versions list so that it is in reverse chronological order
+    # (ie. most recent release first)
+    versions.reverse()
 
     environment = jinja2.Environment(
         loader=jinja2.PackageLoader(config["template"]["package"].get(str)),
@@ -178,6 +209,7 @@ async def template(
     )
 
     environment.filters["read_config"] = _read_config
+    environment.tests["unreleased"] = _is_unreleased
 
     template = environment.get_template(config["template"]["name"].get(str))
     stream = template.stream(

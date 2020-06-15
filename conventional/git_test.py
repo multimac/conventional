@@ -1,13 +1,12 @@
-import asyncio
-import os
+import logging
 import pathlib
 import subprocess
-from typing import Iterable
 
 import pytest
 
-from . import git, util
+from . import git
 
+logging.basicConfig(force=True, level=logging.DEBUG)
 pytestmark = pytest.mark.asyncio
 
 
@@ -21,9 +20,11 @@ def git_repository(tmp_path_factory) -> pathlib.PurePath:
 
 
 async def test_commit_list(git_repository: pathlib.PurePath) -> None:
-    util.create_commit(git_repository, "feat: A new feature")
-    util.create_commit(git_repository, "fix: And a minor fix")
-    util.create_commit(git_repository, "chore: A commit with a body\n\nThe body of the commit")
+    await git.create_commit(git_repository, "feat: A new feature", allow_empty=True)
+    await git.create_commit(git_repository, "fix: And a minor fix", allow_empty=True)
+    await git.create_commit(
+        git_repository, "chore: A commit with a body\n\nThe body of the commit", allow_empty=True
+    )
 
     commits = [commit async for commit in git.get_commits(path=git_repository)]
     expected_commits = [
@@ -38,11 +39,11 @@ async def test_commit_list(git_repository: pathlib.PurePath) -> None:
 
 
 async def test_commit_tags(git_repository: pathlib.PurePath) -> None:
-    util.create_commit(git_repository, "feat: Version A.B.C")
-    util.create_tag(git_repository, "vA.B.C")
+    await git.create_commit(git_repository, "feat: Version A.B.C", allow_empty=True)
+    await git.create_tag(git_repository, "vA.B.C")
 
-    util.create_commit(git_repository, "fix: And a minor fix")
-    util.create_tag(
+    await git.create_commit(git_repository, "fix: And a minor fix", allow_empty=True)
+    await git.create_tag(
         git_repository,
         "vA.B.C-1",
         "Some commit message which makes this an annotated tag\n\nWith a body",

@@ -1,10 +1,12 @@
 import asyncio
+import contextlib
 import datetime
 import io
 import logging
 import pathlib
-from asyncio import IncompleteReadError, LimitOverrunError, StreamReader
-from typing import AsyncIterable, BinaryIO, Dict, Iterable, List, Optional, TypedDict, cast
+from asyncio import StreamReader
+from asyncio.subprocess import Process
+from typing import AsyncIterable, AsyncIterator, Dict, Iterable, List, Optional, TypedDict, cast
 
 import aiocache
 import dateutil.parser
@@ -36,11 +38,11 @@ class Commit(TypedDict):
     tags: Iterable[Tag]
 
 
-def get_commit_format() -> Iterable[str]:
+def _get_commit_format() -> Iterable[str]:
     return ["%H", "%h", "%s", "%b", "%aN", "%aE", "%cI"]
 
 
-def get_tag_format() -> Iterable[str]:
+def _get_tag_format() -> Iterable[str]:
     return [
         "%(refname:lstrip=2)",
         "%(if)%(*objectname)%(then)%(*objectname)%(else)%(objectname)%(end)",
@@ -49,7 +51,7 @@ def get_tag_format() -> Iterable[str]:
     ]
 
 
-def create_commit(
+def _create_commit(
     rev: str,
     short_rev: str,
     subject: str,
@@ -72,7 +74,7 @@ def create_commit(
     }
 
 
-def create_tag(name: str, object_name: str, subject: str, body: str) -> "Tag":
+def _create_tag(name: str, object_name: str, subject: str, body: str) -> "Tag":
     return {
         "name": name.strip(),
         "object_name": object_name.strip(),
@@ -106,26 +108,57 @@ async def _process_delimited_stream(
             buffer.write(remaining)
 
 
+@contextlib.asynccontextmanager
+async def _run(*args, **kwargs) -> AsyncIterator[Process]:
+    logger.debug(f"Running command: {args}")
+    if "cwd" in kwargs and kwargs["cwd"] is not None:
+        logger.debug(f"  in {kwargs['cwd']}")
+
+    if "stdout" not in kwargs:
+        kwargs["stdout"] = asyncio.subprocess.DEVNULL
+    if "stderr" not in kwargs:
+        kwargs["stderr"] = asyncio.subprocess.DEVNULL
+
+    process = await asyncio.create_subprocess_exec(*args, **kwargs)
+
+    try:
+        yield process
+    except:
+        process.kill()
+        raise
+    finally:
+        await process.wait()
+        logger.debug(f"Command exit code: {process.returncode}")
+
+
+async def create_commit(
+    path: pathlib.PurePath, message: str, *, allow_empty: bool = False
+) -> None:
+    args = ["git", "commit", "-m", message]
+    if allow_empty:
+        args.append("--allow-empty")
+
+    async with _run(*args, cwd=path):
+        pass
+
+
+async def create_tag(path: pathlib.PurePath, name: str, message: str = None) -> None:
+    args = ["git", "tag"]
+    if message is not None:
+        args.extend(["-m", message])
+
+    args.append(name)
+
+    async with _run(*args, cwd=path):
+        pass
+
+
 @aiocache.cached()
 async def is_git_repository(path: pathlib.PurePath = None) -> bool:
-    args = [
-        "git",
-        "rev-parse",
-        "--is-inside-work-tree",
-    ]
+    async with _run("git", "rev-parse", "--is-inside-work-tree", cwd=path) as process:
+        pass
 
-    logger.debug(f"Running command: {args}")
-    if path is not None:
-        logger.debug(f"  in {path.as_posix()}")
-
-    proc = await asyncio.create_subprocess_exec(
-        *args, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL, cwd=path
-    )
-
-    await proc.communicate()
-    await proc.wait()
-
-    return proc.returncode == 0
+    return process.returncode == 0
 
 
 async def get_commits(
@@ -145,7 +178,7 @@ async def get_commits(
 
         tags[name].append(tag)
 
-    fmt = "%x00".join([*get_commit_format(), delimiter])
+    fmt = "%x00".join([*_get_commit_format(), delimiter])
     args = ["git", "log", f"--pretty=format:{fmt}"]
 
     if reverse:
@@ -156,28 +189,21 @@ async def get_commits(
     else:
         args.append(end)
 
-    logger.debug(f"Running command: {args}")
-    proc = await asyncio.create_subprocess_exec(
-        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, cwd=path
-    )
+    async with _run(*args, stdout=asyncio.subprocess.PIPE, cwd=path) as process:
+        assert process.stdout
 
-    assert proc.stdout
+        counter = 0
+        async for commit_data in _process_delimited_stream(process.stdout, delimiter):
+            commit_fields = commit_data[:-1].split("\x00")
+            commit = _create_commit(*commit_fields)
 
-    counter = 0
-    async for commit_data in _process_delimited_stream(proc.stdout, delimiter):
-        commit_fields = commit_data[:-1].split("\x00")
-        commit = create_commit(*commit_fields)
+            counter += 1
+            if commit["rev"] in tags:
+                commit["tags"] = tags[commit["rev"]]
 
-        counter += 1
-        if commit["rev"] in tags:
-            commit["tags"] = tags[commit["rev"]]
+            yield commit
 
-        yield commit
-
-    logger.debug(f"Read {counter} commits from repository")
-
-    await proc.wait()
-    logger.debug(f"Command exit code: {proc.returncode}")
+        logger.debug(f"Read {counter} commits from repository")
 
 
 @aiocache.cached()
@@ -190,7 +216,7 @@ async def get_tags(
         logger.warning("Not a git repository.")
         return []
 
-    fmt = "%00".join([*get_tag_format(), delimiter])
+    fmt = "%00".join([*_get_tag_format(), delimiter])
     args = ["git", "tag", "--list", f"--format={fmt}"]
 
     if sort is not None:
@@ -200,23 +226,28 @@ async def get_tags(
     if pattern is not None:
         args.append(pattern)
 
-    logger.debug(f"Running command: {args}")
-    proc = await asyncio.create_subprocess_exec(
-        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, cwd=path
-    )
+    async with _run(*args, stdout=asyncio.subprocess.PIPE, cwd=path) as process:
+        assert process.stdout
 
-    assert proc.stdout
+        tags: List[Tag] = []
+        async for tag_data in _process_delimited_stream(process.stdout, delimiter):
+            tag_fields = tag_data[:-1].split("\x00")
+            tag = _create_tag(*tag_fields)
 
-    tags: List[Tag] = []
-    async for tag_data in _process_delimited_stream(proc.stdout, delimiter):
-        tag_fields = tag_data[:-1].split("\x00")
-        tag = create_tag(*tag_fields)
+            tags.append(tag)
 
-        tags.append(tag)
+        logger.debug(f"Read {len(tags)} tags from repository")
+        return tags
 
-    logger.debug(f"Read {len(tags)} tags from repository")
 
-    await proc.wait()
-    logger.debug(f"Command exit code: {proc.returncode}")
+@aiocache.cached()
+async def get_repository_root(path: pathlib.PurePath = None) -> pathlib.Path:
+    args = [
+        "git",
+        "rev-parse",
+        "--show-toplevel",
+    ]
 
-    return tags
+    async with _run(*args, stdout=asyncio.subprocess.PIPE, cwd=path) as process:
+        root, _ = await process.communicate()
+        return pathlib.Path(root.decode().strip())

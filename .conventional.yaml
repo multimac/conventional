@@ -1,4 +1,6 @@
 template:
   config:
     commit-link-pattern: https://github.com/multimac/conventional/commit/{commit}
+    compare-link-pattern: https://github.com/multimac/conventional/compare/{from}...{to}
     issue-link-pattern: https://github.com/multimac/conventional/issues/{issue}
+    version-link-pattern: https://github.com/multimac/conventional/tree/{tag}

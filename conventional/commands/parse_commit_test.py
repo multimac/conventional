@@ -1,13 +1,14 @@
 import io
 import json
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import confuse
 import dateutil
 import pytest
 
-from .. import git, util
+from .. import git
 from ..parser import conventional_commits
+from ..util.io import json_defaults
 from . import parse_commit
 
 pytestmark = pytest.mark.asyncio
@@ -66,7 +67,7 @@ async def test_end_to_end() -> None:
 
     expected_data: List[parse_commit.Change] = []
     for commit, data in COMMITS:
-        parse_data = json.dumps(commit, default=util.json_defaults)
+        parse_data = json.dumps(commit, default=json_defaults)
 
         expected: parse_commit.Change = {"source": json.loads(parse_data)}
         if data is not None:
@@ -76,7 +77,7 @@ async def test_end_to_end() -> None:
         input_stream.writelines([parse_data, "\n"])
     input_stream.seek(0)
 
-    await parse_commit.async_main(
+    await parse_commit.main(
         config, input=input_stream, output=output_stream, include_unparsed=True
     )
 

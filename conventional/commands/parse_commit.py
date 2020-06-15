@@ -6,8 +6,9 @@ from typing import Any, TextIO, TypedDict
 
 import confuse
 
-from .. import git, util
+from .. import git
 from ..parser.base import Parser
+from ..util.io import json_defaults
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ async def main(
         if not input_line:
             break
 
-        commit: git.Commit = git.create_commit(**json.loads(input_line))
+        commit: git.Commit = git._create_commit(**json.loads(input_line))
         data: Any = parser.parse(commit)
 
         if not include_unparsed and not data:
@@ -47,5 +48,5 @@ async def main(
         if data:
             change["data"] = data
 
-        line = json.dumps(change, default=util.json_defaults)
+        line = json.dumps(change, default=json_defaults)
         await loop.run_in_executor(None, output.writelines, [line, "\n"])
