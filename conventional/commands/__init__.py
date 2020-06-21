@@ -110,6 +110,9 @@ def _template(
     unreleased_version: Optional[str] = Option(
         None, help="If set, will be used as the tag name for unreleased commits."
     ),
+    template_name: Optional[str] = Option(
+        None, help="If set, will override the name of the template to be loaded."
+    ),
 ) -> None:
     """
     Reads a stream of commits from the given file or stdin and uses them to render a template.
@@ -117,9 +120,14 @@ def _template(
 
     from .template import main
 
+    config = ctx.find_object(Configuration)
+
+    if template_name is not None:
+        config.set_args({"template.name": template_name}, dots=True)
+
     run(
         main(
-            ctx.find_object(Configuration),
+            config,
             input=input,
             output=output,
             include_unparsed=include_unparsed,
