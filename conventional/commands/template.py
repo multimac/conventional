@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, TextIO, Tuple, cast
 
 import confuse
 import jinja2
+import typer
 
 from .. import git
 from ..util.confuse import Filename
@@ -196,6 +197,10 @@ async def template(
         versions.append((unreleased_tag, version))
 
     logger.debug(f"{len(versions)} versions found")
+
+    if not any(version.has_commits() for _, version in versions):
+        logger.error("No commits found!")
+        raise typer.Exit(code=1)
 
     # Reverse versions list so that it is in reverse chronological order
     # (ie. most recent release first)
