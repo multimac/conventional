@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.4.1](https://github.com/multimac/conventional/tree/v0.4.1)
+*Compare with [v0.4.0](https://github.com/multimac/conventional/compare/v0.4.0...v0.4.1)*
+
+### Features
+- Return exit code 1 if no commits to template ([dc9003d](https://github.com/multimac/conventional/commit/dc9003d9e070e77fb813210b06588fee6f74bc7e))
+
 ## [v0.4.0](https://github.com/multimac/conventional/tree/v0.4.0)
 *Compare with [v0.3.0](https://github.com/multimac/conventional/compare/v0.3.0...v0.4.0)*
 
