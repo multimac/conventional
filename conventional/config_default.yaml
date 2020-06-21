@@ -22,9 +22,13 @@ tags:
   filter: "*"
 
 template:
-  # `template.package` and `template.name` define the Jinja2 template to use
-  # when rendering the commits.
+  # `template.package` and `template.directory` can be use to list the Python
+  # packages and / or directories to search for templates. Can either be a single
+  # item or an array of items.
   package: conventional
+  directory: []
+
+  # The name of the template to load
   name: changelog.md
 
   # If `True`, unparsed commits will be included when rendering the template.

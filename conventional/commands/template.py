@@ -9,6 +9,7 @@ import confuse
 import jinja2
 
 from .. import git
+from ..util.confuse import Filename
 from ..util.io import AsyncFileObject
 from . import list_commits
 from .parse_commit import Change
@@ -200,9 +201,18 @@ async def template(
     # (ie. most recent release first)
     versions.reverse()
 
+    loaders: List[jinja2.BaseLoader] = []
+
+    for package in config["template"]["package"].get(confuse.StrSeq(split=False)):
+        logger.debug(f"Creating package loader for: {package}")
+        loaders.append(jinja2.PackageLoader(package))
+
+    for directory in config["template"]["directory"].get(confuse.Sequence(Filename())):
+        logger.debug(f"Creating file-system loader for: {directory}")
+        loaders.append(jinja2.FileSystemLoader(directory))
+
     environment = jinja2.Environment(
-        loader=jinja2.PackageLoader(config["template"]["package"].get(str)),
-        extensions=["jinja2.ext.loopcontrols"],
+        loader=jinja2.ChoiceLoader(loaders), extensions=["jinja2.ext.loopcontrols"],
     )
 
     environment.filters["read_config"] = _read_config
