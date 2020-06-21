@@ -148,9 +148,8 @@ async def template(
 
     versions: List[Tuple[Optional[git.Tag], Version]] = []
 
-    version = next_version = Version()
+    version = Version()
     while True:
-        version = next_version
         input_line = await loop.run_in_executor(None, input.readline)
 
         if not input_line:
@@ -158,6 +157,13 @@ async def template(
 
         data = json.loads(input_line)
         change = cast(Change, data)
+
+        if "data" in change or include_unparsed:
+            typ = change.get("data", {}).get("subject", {}).get("type")
+            if typ not in version:
+                version[typ] = []
+
+            version[typ].append(change)
 
         if change["source"]["tags"]:
             tags = [tag for tag in change["source"]["tags"] if not _ignore_tag(tag["name"])]
@@ -171,16 +177,7 @@ async def template(
                 )
 
                 versions.append((tag, version))
-                next_version = Version()
-
-        if "data" not in change and not include_unparsed:
-            continue
-
-        typ = change.get("data", {}).get("subject", {}).get("type")
-        if typ not in version:
-            version[typ] = []
-
-        version[typ].append(change)
+                version = Version()
 
     if version.has_commits():
         logger.debug(f"Found {len(version.get_commits())} unreleased commit(s)")
