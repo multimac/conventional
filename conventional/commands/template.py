@@ -50,7 +50,7 @@ async def main(
 
     async def _list_commits(fd: int) -> None:
         async with AsyncFileObject(os.fdopen(fd, "w")) as list_output:
-            excluded = config["tags"]["exclude"].get(confuse.StrSeq())
+            excluded = config["tags"]["exclude"].get(confuse.StrSeq(split=False))
             try:
                 tag_filter = config["tags"]["filter"].get(str)
             except confuse.NotFoundError:
@@ -133,7 +133,7 @@ async def template(
 
     loop = asyncio.get_event_loop()
 
-    excluded = config["tags"]["exclude"].get(confuse.StrSeq())
+    excluded = config["tags"]["exclude"].get(confuse.StrSeq(split=False))
     try:
         tag_filter = config["tags"]["filter"].get(str)
     except confuse.NotFoundError:

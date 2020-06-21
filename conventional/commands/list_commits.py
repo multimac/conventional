@@ -76,7 +76,7 @@ async def list_commits(
         if from_rev is not None:
             logger.warning("--from-last-tag is ignored when combined with --from")
         else:
-            excluded = config["tags"]["exclude"].get(confuse.StrSeq())
+            excluded = config["tags"]["exclude"].get(confuse.StrSeq(split=False))
             try:
                 tag_filter = config["tags"]["filter"].get(str)
             except confuse.NotFoundError:

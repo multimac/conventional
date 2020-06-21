@@ -57,7 +57,7 @@ class ConventionalCommitParser(Parser[Change]):
         )
 
     def __init__(self, config: confuse.ConfigView) -> None:
-        subject_regex = self._get_subject_regex(config["types"].get(confuse.StrSeq()))
+        subject_regex = self._get_subject_regex(config["types"].get(confuse.StrSeq(split=False)))
         self._parsers: ParserCollection = {
             "subject": lambda text: subject_regex.match(text),
             "body": lambda text: self._body_regex.match(text),
