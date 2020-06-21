@@ -107,7 +107,7 @@ def _template(
         False,
         help="If set, commits which fail to be parsed will be returned. See `parse-commit`.",
     ),
-    unreleased_version: str = Option(
+    unreleased_version: Optional[str] = Option(
         None, help="If set, will be used as the tag name for unreleased commits."
     ),
 ) -> None:
