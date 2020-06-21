@@ -91,7 +91,9 @@ Below is a list of the parsers and templates provided by default with `conventio
 
 ##### Supported configuration:
 * `commit-link-pattern` - This pattern will be used to generate a link to the commit, with `{rev}` being replaced with the hash of the commit and `{short_rev}` being replace with the short hash of the commit. For example, if you are using Github this may be `https://github.com/[owner]/[repo]/commit/{rev}`.
+* `compare-link-pattern` - This pattern will be used to generate a link to a comparison between the current version and the previous version, with `{to}` being replaced with the tag of the current version and `{from}` being replaced with the tag of the previous version. For example, in Github this may be `https://github.com/[owner]/[repo]/compare/{from}...{to}`
 * `issue-link-pattern` - This pattern will be used to generate a link to any issues references in the commit, with `{issue}` being expanded to the ID of the issue. For example, if you are using Jira this format may be `https://[company].atlassian.net/browse/{issue}`.
+* `version-link-pattern` - This pattern will be used to generate a link to the source for a given version, with `{tag}` being replaced by the tag for the given version. For example, in Github this may be `https://github.com/[owner]/[repo]/tree/{tag}`
 * `type-headings` - A mapping of commit "type" to the text that should be used in the header for a specific type of change. Defaults to `{"feat": "Feature", "fix": "Fixes"}`.
 
 #### [package: conventional, name: slack.md](conventional/templates/slack.md)
@@ -99,5 +101,7 @@ Below is a list of the parsers and templates provided by default with `conventio
 
 ##### Supported configuration:
 * `commit-link-pattern` - This pattern will be used to generate a link to the commit, with `{rev}` being replaced with the hash of the commit and `{short_rev}` being replace with the short hash of the commit. For example, if you are using Github this may be `https://github.com/[owner]/[repo]/commit/{rev}`.
+* `compare-link-pattern` - This pattern will be used to generate a link to a comparison between the current version and the previous version, with `{to}` being replaced with the tag of the current version and `{from}` being replaced with the tag of the previous version. For example, in Github this may be `https://github.com/[owner]/[repo]/compare/{from}...{to}`
 * `issue-link-pattern` - This pattern will be used to generate a link to any issues references in the commit, with `{issue}` being expanded to the ID of the issue. For example, if you are using Jira this format may be `https://[company].atlassian.net/browse/{issue}`.
+* `version-link-pattern` - This pattern will be used to generate a link to the source for a given version, with `{tag}` being replaced by the tag for the given version. For example, in Github this may be `https://github.com/[owner]/[repo]/tree/{tag}`
 * `type-headings` - A mapping of commit "type" to the text that should be used in the header for a specific type of change. Defaults to `{"feat": "Feature", "fix": "Fixes"}`.
