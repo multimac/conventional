@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.5.0](https://github.com/multimac/conventional/tree/v0.5.0)
+*Compare with [v0.4.1](https://github.com/multimac/conventional/compare/v0.4.1...v0.5.0)*
+
+### Features
+- **api:** Update internal API to be more user-friendly ([cf53788](https://github.com/multimac/conventional/commit/cf53788389e43a0658c6c2fc4e591d45c0d0f090))
+- **cli:** Add "version" subcommand ([6ca1e53](https://github.com/multimac/conventional/commit/6ca1e536f1d6d2209cb86dad2b5cd677013afcd1))
+- **templates:** Add conventional-commit template (alpha) ([9aefe89](https://github.com/multimac/conventional/commit/9aefe89dd759a29b78ca75cf827f0408a349ea01))
+
+  This template aims to allow for rendering parsed data in
+  a Conventional Commit format. This can be used to round-trip and
+  standardise Conventional Commits, as well as allow for manipulating
+  commit data and re-rendering it.
+
 ## [v0.4.1](https://github.com/multimac/conventional/tree/v0.4.1)
 *Compare with [v0.4.0](https://github.com/multimac/conventional/compare/v0.4.0...v0.4.1)*
 
