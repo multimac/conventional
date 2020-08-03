@@ -128,3 +128,17 @@ def _template(
             unreleased_version=unreleased_version,
         )
     )
+
+
+@group.command("version")
+def _version() -> None:
+    """
+    Parses a stream of commits in the given file or from stdin.
+    """
+
+    import pkg_resources
+    import typer
+
+    version = pkg_resources.get_distribution("conventional").version
+    typer.echo(version)
+    raise typer.Exit(0)
