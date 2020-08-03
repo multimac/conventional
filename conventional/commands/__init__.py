@@ -42,11 +42,12 @@ def _list_commits(
     Retrieves commits from the git repository at PATH, or the current directory if PATH is not provided.
     """
 
-    from .list_commits import main
+    from .list_commits import cli_main
 
+    config = ctx.find_object(Configuration)
     run(
-        main(
-            ctx.find_object(Configuration),
+        cli_main(
+            config,
             output=output,
             from_rev=from_rev,
             from_last_tag=from_last_tag,
@@ -78,16 +79,10 @@ def _parse_commit(
     Parses a stream of commits in the given file or from stdin.
     """
 
-    from .parse_commit import main
+    from .parse_commit import cli_main
 
-    run(
-        main(
-            ctx.find_object(Configuration),
-            input=input,
-            output=output,
-            include_unparsed=include_unparsed,
-        )
-    )
+    config = ctx.find_object(Configuration)
+    run(cli_main(config, input=input, output=output, include_unparsed=include_unparsed,))
 
 
 @group.command("template")
@@ -118,15 +113,14 @@ def _template(
     Reads a stream of commits from the given file or stdin and uses them to render a template.
     """
 
-    from .template import main
+    from .template import cli_main
 
     config = ctx.find_object(Configuration)
-
     if template_name is not None:
         config.set_args({"template.name": template_name}, dots=True)
 
     run(
-        main(
+        cli_main(
             config,
             input=input,
             output=output,

@@ -70,15 +70,15 @@ class Parser(abc.ABC, Generic[T]):
     def post_process(self, data: Dict[str, Any]) -> None:
         pass
 
-    def parse(self, commit: Commit) -> Optional[T]:
+    def parse(self, subject: str, body: str = None) -> Optional[T]:
         parsers = self.get_parsers()
 
         data: Any = {}
-        if commit["body"] and "body" in parsers:
-            data = {**data, **self._process_match({"body": commit["body"]})}
+        if body is not None and "body" in parsers:
+            data = {**data, **self._process_match({"body": body})}
 
         if "subject" in parsers:
-            data = {**data, **self._process_match({"subject": commit["subject"]})}
+            data = {**data, **self._process_match({"subject": subject})}
 
         if not self.has_parsed(data):
             return None

@@ -1,8 +1,7 @@
-import asyncio
 import importlib
 import json
 import logging
-from typing import Any, TextIO, TypedDict
+from typing import Any, AsyncIterable, Optional, TextIO, TypedDict
 
 import confuse
 
@@ -13,40 +12,45 @@ from ..util.io import json_defaults
 logger = logging.getLogger(__name__)
 
 
-class Change(TypedDict, total=False):
+class ParsedCommit(TypedDict):
     source: git.Commit
-    data: Any
+    data: Optional[Any]
+
+
+def load_parser(config: confuse.Configuration) -> Parser[Any]:
+    parser_config = config["parser"]
+    module = parser_config["module"].get(str)
+    name = parser_config["class"].get(str)
+
+    custom_config = parser_config["config"]
+    cls = getattr(importlib.import_module(module), name)
+    return cls(custom_config)
+
+
+async def cli_main(
+    config: confuse.Configuration, *, input: TextIO, output: TextIO, include_unparsed: bool,
+):
+    async def _yield_input():
+        for line in input:
+            item = json.loads(line)
+            yield item
+
+    stream = main(config, input=_yield_input(), include_unparsed=include_unparsed)
+
+    async for item in stream:
+        line = json.dumps(item, default=json_defaults)
+        output.writelines([line, "\n"])
 
 
 async def main(
-    config: confuse.Configuration, *, input: TextIO, output: TextIO, include_unparsed: bool,
-) -> None:
-    def _load_parser(config: confuse.Configuration) -> Parser[Any]:
-        parser_config = config["parser"]
-        module = parser_config["module"].get(str)
-        name = parser_config["class"].get(str)
-        custom_config = parser_config["config"]
+    config: confuse.Configuration, *, input: AsyncIterable[git.Commit], include_unparsed: bool,
+) -> AsyncIterable[ParsedCommit]:
 
-        return getattr(importlib.import_module(module), name)(custom_config)
-
-    parser = _load_parser(config)
-    loop = asyncio.get_event_loop()
-
-    while True:
-        input_line = await loop.run_in_executor(None, input.readline)
-
-        if not input_line:
-            break
-
-        commit: git.Commit = git._create_commit(**json.loads(input_line))
-        data: Any = parser.parse(commit)
+    parser = load_parser(config)
+    async for commit in input:
+        data: Any = parser.parse(commit["subject"], commit["body"])
 
         if not include_unparsed and not data:
             continue
 
-        change: Change = {"source": commit}
-        if data:
-            change["data"] = data
-
-        line = json.dumps(change, default=json_defaults)
-        await loop.run_in_executor(None, output.writelines, [line, "\n"])
+        yield {"source": commit, "data": data}
