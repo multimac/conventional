@@ -1,0 +1,17 @@
+{%- for tag, version in versions if version.has_commits() %}
+{%- for type, changes in version.items() %}
+{%- for change in changes if "data" in change %}
+{{ change["data"]["subject"]["type"] }}{% if "scope" in change["data"]["subject"] %}({{ change["data"]["subject"]["scope"] }}){% endif %}{% if change["data"]["metadata"]["breaking"] %}!{% endif %}: {{ change["data"]["subject"]["message"] }}
+
+{% if "content" in change["data"]["body"] %}{{ change["data"]["body"]["content"] }}
+
+{% endif %}
+{% if "footer" in change["data"]["body"] %}
+{% for item in change["data"]["body"]["footer"]["items"] %}
+{{ item["key"] }}: {{ item["value"] }}
+
+{% endfor %}
+{% endif %}
+{%- endfor %}
+{%- endfor %}
+{%- endfor %}
