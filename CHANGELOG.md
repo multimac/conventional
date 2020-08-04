@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.5.1](https://github.com/multimac/conventional/tree/v0.5.1)
+*Compare with [v0.5.0](https://github.com/multimac/conventional/compare/v0.5.0...v0.5.1)*
+
+### Fixes
+- **templates:** Fix up the conventional-commit template ([3fae8b1](https://github.com/multimac/conventional/commit/3fae8b11972558e70378072865d2919dfe368600))
+
 ## [v0.5.0](https://github.com/multimac/conventional/tree/v0.5.0)
 *Compare with [v0.4.1](https://github.com/multimac/conventional/compare/v0.4.1...v0.5.0)*
 

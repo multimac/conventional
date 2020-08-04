@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "conventional"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["David Symons <david@symons.io>"]
 description = "No frills command-line tool for processing structured commits."
 
