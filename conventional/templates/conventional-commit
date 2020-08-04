@@ -1,17 +1,30 @@
-{%- for tag, version in versions if version.has_commits() %}
-{%- for type, changes in version.items() %}
-{%- for change in changes if "data" in change %}
-{{ change["data"]["subject"]["type"] }}{% if "scope" in change["data"]["subject"] %}({{ change["data"]["subject"]["scope"] }}){% endif %}{% if change["data"]["metadata"]["breaking"] %}!{% endif %}: {{ change["data"]["subject"]["message"] }}
+{%- macro _render_delimiter(loop) %}
+{%- if not loop.last %}
 
-{% if "content" in change["data"]["body"] %}{{ change["data"]["body"]["content"] }}
-
+{{ config["delimiter"] | read_config("===============") }}
 {% endif %}
-{% if "footer" in change["data"]["body"] %}
+{%- endmacro %}
+
+{%- for tag, version in versions if version.has_commits() %}{%- for type, changes in version.items() %}{%- for change in changes if "data" in change %}
+
+{#- Render subject line #}
+{{- change["data"]["subject"]["type"] }}{% if "scope" in change["data"]["subject"] %}({{ change["data"]["subject"]["scope"] }}){% endif %}{% if change["data"]["metadata"]["breaking"] %}!{% endif %}: {{ change["data"]["subject"]["message"] }}
+
+{#- If content exists, render it after two newline characters #}
+{%- if "content" in change["data"]["body"] %}
+
+{{ change["data"]["body"]["content"] }}
+{%- endif %}
+
+{#- If any footers exists, render each item on a new line #}
+{%- if "footer" in change["data"]["body"] %}
+
+{#- #}
 {% for item in change["data"]["body"]["footer"]["items"] %}
 {{ item["key"] }}: {{ item["value"] }}
+{%- endfor %}
+{%- endif %}
 
-{% endfor %}
-{% endif %}
-{%- endfor %}
-{%- endfor %}
-{%- endfor %}
+{{- _render_delimiter(loop) }}{% endfor %}
+{{- _render_delimiter(loop) }}{% endfor %}
+{{- _render_delimiter(loop) }}{% endfor %}
