@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.5.2](https://github.com/multimac/conventional/tree/v0.5.2)
+*Compare with [v0.5.1](https://github.com/multimac/conventional/compare/v0.5.1...v0.5.2)*
+
+### Fixes
+- Update formatting and add missing typing ([3199c6b](https://github.com/multimac/conventional/commit/3199c6bd41d545820db76a29a6c04961b8bbcbb2))
+
 ## [v0.5.1](https://github.com/multimac/conventional/tree/v0.5.1)
 *Compare with [v0.5.0](https://github.com/multimac/conventional/compare/v0.5.0...v0.5.1)*
 
