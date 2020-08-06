@@ -41,7 +41,7 @@ class Change(TypedDict):
 
 class ConventionalCommitParser(Parser[Change]):
 
-    _footer_test_regex = "(?:[\w-]+|BREAKING CHANGE)(?:: | #)\w"
+    _footer_test_regex = r"(?:[\w-]+|BREAKING CHANGE)(?:: | #)\w"
     _body_regex = re.compile(
         fr"^(?P<content>(?:(?:(?<!^)\n|(?:^\n*|\n{{2,}})(?!{_footer_test_regex})).+)+)?"
         fr"\n*(?P<footer>{_footer_test_regex}[\w\W]*)?$"
@@ -57,7 +57,9 @@ class ConventionalCommitParser(Parser[Change]):
         )
 
     def __init__(self, config: confuse.ConfigView) -> None:
-        subject_regex = self._get_subject_regex(config["types"].get(confuse.StrSeq(split=False)))
+        subject_regex = self._get_subject_regex(
+            config["types"].get(confuse.StrSeq(split=False))
+        )
         self._parsers: ParserCollection = {
             "subject": lambda text: subject_regex.match(text),
             "body": lambda text: self._body_regex.match(text),
@@ -78,4 +80,6 @@ class ConventionalCommitParser(Parser[Change]):
         breaking_change = any(f["key"] == "BREAKING CHANGE" for f in footers)
         metadata["breaking"] = bool(subject.get("breaking")) or breaking_change
 
-        metadata["closes"] = list(f["value"] for f in footers if f["key"] in ("Closes", "Refs"))
+        metadata["closes"] = list(
+            f["value"] for f in footers if f["key"] in ("Closes", "Refs")
+        )

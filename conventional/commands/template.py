@@ -1,9 +1,11 @@
 import fnmatch
+import json
 import logging
-from typing import Any, AsyncIterable, Dict, List, Optional, TextIO, Tuple, TypedDict
+from typing import Any, AsyncIterable, Dict, List, Optional, TextIO, Tuple, Type, TypedDict, cast
 
 import confuse
 import jinja2
+import typer
 
 from .. import git
 from ..util.confuse import Filename
@@ -20,13 +22,10 @@ class Change(TypedDict):
 
 
 class Version(Dict[Optional[str], List[Change]]):
-    def __init__(self, *arg, **kwargs):
-        super().__init__(*arg, **kwargs)
-
-    def has_commits(self):
+    def has_commits(self) -> bool:
         return any(self.get_commits())
 
-    def get_commits(self):
+    def get_commits(self) -> List[Change]:
         return [commit for commits in self.values() for commit in commits]
 
 
@@ -40,21 +39,27 @@ async def cli_main(
     output: TextIO,
     include_unparsed: bool,
     unreleased_version: Optional[str],
-):
-    async def _yield_input():
-        for line in input:
+) -> None:
+    async def _yield_input(stream: TextIO) -> AsyncIterable[Change]:
+        for line in stream:
             item = json.loads(line)
-            yield line
+            yield cast(Change, item)
 
-    async def _yield_commits():
+    async def _yield_commits() -> AsyncIterable[Change]:
         from .list_commits import main as list_commits
-        from .parse_commit import main as parse_commit, ParsedCommit
+        from .parse_commit import main as parse_commit
 
-        def _yield_commit_range(from_rev: str, to_rev: str) -> AsyncIterable[ParsedCommit]:
+        def _yield_commit_range(
+            from_rev: Optional[str], to_rev: str
+        ) -> AsyncIterable[Change]:
             return parse_commit(
                 config,
                 input=list_commits(
-                    config, from_rev=from_rev, from_last_tag=False, to_rev=to_rev, reverse=True,
+                    config,
+                    from_rev=from_rev,
+                    from_last_tag=False,
+                    to_rev=to_rev,
+                    reverse=True,
                 ),
                 include_unparsed=True,
             )
@@ -65,7 +70,7 @@ async def cli_main(
         except confuse.NotFoundError:
             tag_filter = None
 
-        from_rev = None
+        from_rev = None  # type: Optional[str]
         for tag in await git.get_tags(pattern=tag_filter, sort="creatordate"):
             if tag["name"] in excluded:
                 continue
@@ -88,7 +93,7 @@ async def cli_main(
             yield commit
 
     if input is not None:
-        commit_stream = _yield_input()
+        commit_stream = _yield_input(input)
     else:
         commit_stream = _yield_commits()
 
@@ -116,7 +121,9 @@ async def main(
     def _is_unreleased(tag: Optional[git.Tag]) -> bool:
         return tag is None or tag["name"] == unreleased_version
 
-    def _read_config(view: confuse.ConfigView, default: Any = DEFAULT, typ=str) -> Any:
+    def _read_config(
+        view: confuse.ConfigView, default: Any = DEFAULT, typ: Type = str
+    ) -> Any:
         try:
             return view.get(typ)
         except confuse.NotFoundError:
@@ -152,7 +159,9 @@ async def main(
             version[typ].append(change)
 
         if change["source"]["tags"]:
-            tags = [tag for tag in change["source"]["tags"] if not _ignore_tag(tag["name"])]
+            tags = [
+                tag for tag in change["source"]["tags"] if not _ignore_tag(tag["name"])
+            ]
 
             if tags:
                 tag = sorted(tags, key=lambda tag: tag["name"])[0]
@@ -170,7 +179,9 @@ async def main(
 
         unreleased_tag: Optional[git.Tag] = None
         if unreleased_version is not None:
-            logger.debug(f"Using {unreleased_version} as the version for unreleased commit(s)")
+            logger.debug(
+                f"Using {unreleased_version} as the version for unreleased commit(s)"
+            )
             unreleased_tag = {
                 "name": unreleased_version,
                 "object_name": "",

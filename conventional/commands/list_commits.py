@@ -25,7 +25,11 @@ async def cli_main(
         logger.warning("--include-unparsed is ignored without --parse")
 
     stream = main(
-        config, from_rev=from_rev, from_last_tag=from_last_tag, to_rev=to_rev, reverse=reverse,
+        config,
+        from_rev=from_rev,
+        from_last_tag=from_last_tag,
+        to_rev=to_rev,
+        reverse=reverse,
     )  # type: AsyncIterable[Any]
 
     if parse:
@@ -57,7 +61,9 @@ async def main(
             except confuse.NotFoundError:
                 tag_filter = None
 
-            tags = await git.get_tags(pattern=tag_filter, sort="creatordate", reverse=True)
+            tags = await git.get_tags(
+                pattern=tag_filter, sort="creatordate", reverse=True
+            )
             from_rev = next(tag["name"] for tag in tags if tag["name"] not in excluded)
 
     async for commit in git.get_commits(start=from_rev, end=to_rev, reverse=reverse):

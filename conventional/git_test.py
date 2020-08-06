@@ -23,7 +23,9 @@ async def test_commit_list(git_repository: pathlib.PurePath) -> None:
     await git.create_commit(git_repository, "feat: A new feature", allow_empty=True)
     await git.create_commit(git_repository, "fix: And a minor fix", allow_empty=True)
     await git.create_commit(
-        git_repository, "chore: A commit with a body\n\nThe body of the commit", allow_empty=True
+        git_repository,
+        "chore: A commit with a body\n\nThe body of the commit",
+        allow_empty=True,
     )
 
     commits = [commit async for commit in git.get_commits(path=git_repository)]
@@ -69,8 +71,12 @@ async def test_commit_tags(git_repository: pathlib.PurePath) -> None:
 
     assert len(tags) == len(expected_tags)
     for actual_tag, expected_tag in zip(tags, expected_tags):
-        assert expected_tag == {k: v for k, v in actual_tag.items() if k in expected_tag}
+        assert expected_tag == {
+            k: v for k, v in actual_tag.items() if k in expected_tag
+        }
 
     assert len(commits) == len(expected_commits)
     for actual_commit, expected_commit in zip(commits, expected_commits):
-        assert expected_commit == {k: v for k, v in actual_commit.items() if k in expected_commit}
+        assert expected_commit == {
+            k: v for k, v in actual_commit.items() if k in expected_commit
+        }

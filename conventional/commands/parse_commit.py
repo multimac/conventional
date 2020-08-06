@@ -1,7 +1,7 @@
 import importlib
 import json
 import logging
-from typing import Any, AsyncIterable, Optional, TextIO, TypedDict
+from typing import Any, AsyncIterable, Optional, TextIO, TypedDict, cast
 
 import confuse
 
@@ -24,13 +24,17 @@ def load_parser(config: confuse.Configuration) -> Parser[Any]:
 
     custom_config = parser_config["config"]
     cls = getattr(importlib.import_module(module), name)
-    return cls(custom_config)
+    return cast(Parser[Any], cls(custom_config))
 
 
 async def cli_main(
-    config: confuse.Configuration, *, input: TextIO, output: TextIO, include_unparsed: bool,
-):
-    async def _yield_input():
+    config: confuse.Configuration,
+    *,
+    input: TextIO,
+    output: TextIO,
+    include_unparsed: bool,
+) -> None:
+    async def _yield_input() -> AsyncIterable[git.Commit]:
         for line in input:
             item = json.loads(line)
             yield item
@@ -43,7 +47,10 @@ async def cli_main(
 
 
 async def main(
-    config: confuse.Configuration, *, input: AsyncIterable[git.Commit], include_unparsed: bool,
+    config: confuse.Configuration,
+    *,
+    input: AsyncIterable[git.Commit],
+    include_unparsed: bool,
 ) -> AsyncIterable[ParsedCommit]:
 
     parser = load_parser(config)

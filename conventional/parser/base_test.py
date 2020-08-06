@@ -24,7 +24,11 @@ INVALID_PARSER_DATA = [
         "Not a conventional commit subject",
         {"_raw": "Not a conventional commit subject"},
     ),
-    ("footer", "There are no footers here", {"_raw": "There are no footers here", "items": []}),
+    (
+        "footer",
+        "There are no footers here",
+        {"_raw": "There are no footers here", "items": []},
+    ),
 ]
 
 VALID_COMMITS = [
@@ -76,7 +80,10 @@ VALID_COMMITS = [
                     "_raw": "Refs #JIRA-1\nBREAKING CHANGE: Something has changed, be afraid",
                     "items": [
                         {"key": "Refs", "value": "JIRA-1"},
-                        {"key": "BREAKING CHANGE", "value": "Something has changed, be afraid",},
+                        {
+                            "key": "BREAKING CHANGE",
+                            "value": "Something has changed, be afraid",
+                        },
                     ],
                 },
             },

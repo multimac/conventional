@@ -13,8 +13,6 @@ from typing import (
     cast,
 )
 
-from conventional.git import Commit
-
 T = TypeVar("T")
 
 ParseResult = Union[Optional[Match], Iterable[Match]]

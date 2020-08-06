@@ -1,24 +1,10 @@
-import asyncio
 import enum
-import logging
 import pathlib
 from typing import List
 
-import confuse
 import typer
 
 from .commands import group as main
-from .util.typer import ColorFormatter, TyperHandler
-
-handler = TyperHandler()
-handler.formatter = ColorFormatter()
-
-logger = logging.getLogger()
-logging.basicConfig(handlers=[handler], force=True)
-
-# Importing aiocache results in a warning being logged. Temporarily disable it
-# until it has been imported.
-logging.getLogger("aiocache").setLevel(logging.ERROR)
 
 
 class Verbosity(str, enum.Enum):
@@ -46,15 +32,31 @@ def init(
     """
     Conventional - An extensible command-line tool for parsing and processing structured commits.
     """
+    import asyncio
+    import logging
 
-    import aiocache
-    from .util.config import find_project_configuration_file
+    import confuse
 
-    logging.getLogger().setLevel(getattr(logging, verbosity))
+    from .util.typer import ColorFormatter, TyperHandler
+
+    handler = TyperHandler()
+    handler.formatter = ColorFormatter()
+
+    logger = logging.getLogger()
+    logging.basicConfig(handlers=[handler], force=True)
+
+    # Importing aiocache results in a warning being logged. Temporarily disable it
+    # until it has been imported.
+    logging.getLogger("aiocache").setLevel(logging.ERROR)
+    import aiocache  # noqa: F401
 
     # Reset aiocache log level since aiocache has now been imported and unnecessary
     # warning has been avioded.
     logging.getLogger("aiocache").setLevel(logging.NOTSET)
+
+    from .util.config import find_project_configuration_file
+
+    logging.getLogger().setLevel(getattr(logging, verbosity))
 
     config = confuse.Configuration("Conventional", "conventional")
 

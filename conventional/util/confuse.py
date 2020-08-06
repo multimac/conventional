@@ -1,13 +1,10 @@
 from pathlib import Path
 
-from confuse import Template
+from confuse import ConfigView, Template
 
 
 class Filename(Template):
-    def __init__(self):
-        super().__init__()
-
-    def value(self, view, template=None):
+    def value(self, view: ConfigView, template: Template = None) -> Path:
         path, source = view.first()
 
         if not isinstance(path, str):
@@ -19,6 +16,8 @@ class Filename(Template):
             return filename
 
         if not source.filename:
-            self.fail(f"cannot load relative path, {filename}, from non-file config", view)
+            self.fail(
+                f"cannot load relative path, {filename}, from non-file config", view
+            )
 
         return Path(source.filename).joinpath(filename)

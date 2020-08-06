@@ -1,7 +1,5 @@
-from asyncio import run
 from typing import Optional
 
-from confuse import Configuration
 from typer import Context, FileText, Option, Typer
 
 group = Typer()
@@ -17,14 +15,18 @@ def _list_commits(
         mode="w",
     ),
     from_rev: Optional[str] = Option(
-        None, "--from", help="The commit or tag to start from when listing commits from."
+        None,
+        "--from",
+        help="The commit or tag to start from when listing commits from.",
     ),
     from_last_tag: bool = Option(
         False,
         "--from-last-tag",
         help="If given, the commit list will start from the most-recent tag.",
     ),
-    to_rev: str = Option("HEAD", "--to", help="The commit or tag to stop at listing commits."),
+    to_rev: str = Option(
+        "HEAD", "--to", help="The commit or tag to stop at listing commits."
+    ),
     reverse: bool = Option(
         False,
         "--reverse",
@@ -41,6 +43,9 @@ def _list_commits(
     """
     Retrieves commits from the git repository at PATH, or the current directory if PATH is not provided.
     """
+    from asyncio import run
+
+    from confuse import Configuration
 
     from .list_commits import cli_main
 
@@ -64,7 +69,8 @@ def _parse_commit(
     ctx: Context,
     *,
     input: FileText = Option(
-        "-", help="A file to read commits from. If `-`, commits will be read from stdin."
+        "-",
+        help="A file to read commits from. If `-`, commits will be read from stdin.",
     ),
     output: FileText = Option(
         "-",
@@ -78,11 +84,16 @@ def _parse_commit(
     """
     Parses a stream of commits in the given file or from stdin.
     """
+    from asyncio import run
+
+    from confuse import Configuration
 
     from .parse_commit import cli_main
 
     config = ctx.find_object(Configuration)
-    run(cli_main(config, input=input, output=output, include_unparsed=include_unparsed,))
+    run(
+        cli_main(config, input=input, output=output, include_unparsed=include_unparsed,)
+    )
 
 
 @group.command("template")
@@ -112,6 +123,9 @@ def _template(
     """
     Reads a stream of commits from the given file or stdin and uses them to render a template.
     """
+    from asyncio import run
+
+    from confuse import Configuration
 
     from .template import cli_main
 

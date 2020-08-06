@@ -1,26 +1,15 @@
-import asyncio
 import datetime
+from typing import Any
 
-import dateutil
-
-
-class AsyncFileObject:
-    def __init__(self, f):
-        self.f = f
-
-    async def __aenter__(self):
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.f.__enter__)
-
-    async def __aexit__(self, *args):
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.f.__exit__, *args)
+import dateutil.tz
 
 
-def json_defaults(obj):
+def json_defaults(obj: Any) -> str:
     """JSON serializer for objects not serializable by default json code"""
 
-    if isinstance(obj, (datetime.datetime, datetime.date)):
+    if isinstance(obj, datetime.datetime):
         return obj.astimezone(dateutil.tz.UTC).isoformat()
+    elif isinstance(obj, datetime.date):
+        return obj.isoformat()
 
     raise TypeError("Type %s not serializable" % type(obj))

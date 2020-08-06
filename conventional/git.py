@@ -4,9 +4,18 @@ import datetime
 import io
 import logging
 import pathlib
-from asyncio import StreamReader
 from asyncio.subprocess import Process
-from typing import AsyncIterable, AsyncIterator, Dict, Iterable, List, Optional, TypedDict, cast
+from typing import (
+    Any,
+    AsyncIterable,
+    AsyncIterator,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    TypedDict,
+    cast,
+)
 
 import aiocache
 import dateutil.parser
@@ -109,7 +118,7 @@ async def _process_delimited_stream(
 
 
 @contextlib.asynccontextmanager
-async def _run(*args, **kwargs) -> AsyncIterator[Process]:
+async def _run(*args: Any, **kwargs: Any) -> AsyncIterator[Process]:
     logger.debug(f"Running command: {args}")
     if "cwd" in kwargs and kwargs["cwd"] is not None:
         logger.debug(f"  in {kwargs['cwd']}")
@@ -162,7 +171,11 @@ async def is_git_repository(path: pathlib.PurePath = None) -> bool:
 
 
 async def get_commits(
-    *, start: str = None, end: str = "HEAD", path: pathlib.PurePath = None, reverse: bool = False,
+    *,
+    start: str = None,
+    end: str = "HEAD",
+    path: pathlib.PurePath = None,
+    reverse: bool = False,
 ) -> AsyncIterable[Commit]:
     """Get the commits between start and end."""
 
@@ -208,7 +221,11 @@ async def get_commits(
 
 @aiocache.cached()
 async def get_tags(
-    *, path: pathlib.PurePath = None, pattern: str = None, sort: str = None, reverse: bool = False
+    *,
+    path: pathlib.PurePath = None,
+    pattern: str = None,
+    sort: str = None,
+    reverse: bool = False,
 ) -> Iterable[Tag]:
     """ Gets all tags in the repository. """
 
