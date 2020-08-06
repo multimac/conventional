@@ -27,10 +27,10 @@ jinja2 = "^2.11.2"
 python = "^3.8"
 python-dateutil = "^2.8.1"
 typer = "^0.3"
-flake8 = "^3.8.3"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
+flake8 = "^3.8.3"
 isort = "^5.3"
 mypy = "^0.782"
 pytest = "^6.0"
