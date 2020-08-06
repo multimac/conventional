@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.5.3](https://github.com/multimac/conventional/tree/v0.5.3)
+*Compare with [v0.5.2](https://github.com/multimac/conventional/compare/v0.5.2...v0.5.3)*
+
+### Fixes
+- Change flake8 to be a dev-dependency ([4538ba5](https://github.com/multimac/conventional/commit/4538ba5ba7a0af2908d0a8390d273c0ebac3fce4))
+
 ## [v0.5.2](https://github.com/multimac/conventional/tree/v0.5.2)
 *Compare with [v0.5.1](https://github.com/multimac/conventional/compare/v0.5.1...v0.5.2)*
 
