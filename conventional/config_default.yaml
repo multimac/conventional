@@ -34,6 +34,10 @@ template:
   # If `True`, unparsed commits will be included when rendering the template.
   include-unparsed: false
 
+  # Order of the commit types when listing commits in the changelog. Types missing from
+  # this list will be ordered alphabetically after all other types.
+  type_order: [feat, fix, docs]
+
   # Configuration specific to the template defined by `template.package` + `template.name`
   # (see https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.PackageLoader) in this
   # case the configuration is for the `changelog.md` template.

@@ -200,6 +200,20 @@ async def main(
     # (ie. most recent release first)
     versions.reverse()
 
+    # Order commit types in each version by the order specified in the config
+    # file. If a commit type does not have a defined order, it will be ordered
+    # alphabetically at the end.
+    def _commit_type_sort_index(type: str) -> int:
+        order = config["template"]["type_order"].get(confuse.StrSeq(split=False))
+        return (order.index(type) if type in order else len(order), type)
+
+    for _, version in versions:
+        # dicts remember insertion order, so `version[k] = version.pop(k)` should
+        # bump a key to the back of the dictionary. Doing this for every key in
+        # the dictionary will leave it sorted.
+        for k in sorted(version.keys(), key=_commit_type_sort_index):
+            version[k] = version.pop(k)
+
     loaders: List[jinja2.BaseLoader] = []
 
     for package in config["template"]["package"].get(confuse.StrSeq(split=False)):
