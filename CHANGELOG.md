@@ -1,22 +1,18 @@
 # Changelog
 
-## [v0.5.3](https://github.com/multimac/conventional/tree/v0.5.3)
-*Compare with [v0.5.2](https://github.com/multimac/conventional/compare/v0.5.2...v0.5.3)*
+## [0.6.0](https://github.com/multimac/conventional/tree/0.6.0)
+*Compare with [v0.5.0](https://github.com/multimac/conventional/compare/v0.5.0...0.6.0)*
 
-### Fixes
-- Change flake8 to be a dev-dependency ([4538ba5](https://github.com/multimac/conventional/commit/4538ba5ba7a0af2908d0a8390d273c0ebac3fce4))
+### Features
+- Upgrade Jinja2 to 3.0.3 ([2f3f6bd](https://github.com/multimac/conventional/commit/2f3f6bdb38d9921e89082d079e9ab75150287ba0))
+- Allow sorting of types when rendering a template ([95eb4fe](https://github.com/multimac/conventional/commit/95eb4fe0b2697679188af7df25531f40bacdc3df))
 
-## [v0.5.2](https://github.com/multimac/conventional/tree/v0.5.2)
-*Compare with [v0.5.1](https://github.com/multimac/conventional/compare/v0.5.1...v0.5.2)*
-
-### Fixes
-- Update formatting and add missing typing ([3199c6b](https://github.com/multimac/conventional/commit/3199c6bd41d545820db76a29a6c04961b8bbcbb2))
-
-## [v0.5.1](https://github.com/multimac/conventional/tree/v0.5.1)
-*Compare with [v0.5.0](https://github.com/multimac/conventional/compare/v0.5.0...v0.5.1)*
+  The new "type_order" configuration key allows users to specify the order commit types are dprovided in when rendering a template.
 
 ### Fixes
 - **templates:** Fix up the conventional-commit template ([3fae8b1](https://github.com/multimac/conventional/commit/3fae8b11972558e70378072865d2919dfe368600))
+- Update formatting and add missing typing ([3199c6b](https://github.com/multimac/conventional/commit/3199c6bd41d545820db76a29a6c04961b8bbcbb2))
+- Change flake8 to be a dev-dependency ([4538ba5](https://github.com/multimac/conventional/commit/4538ba5ba7a0af2908d0a8390d273c0ebac3fce4))
 
 ## [v0.5.0](https://github.com/multimac/conventional/tree/v0.5.0)
 *Compare with [v0.4.1](https://github.com/multimac/conventional/compare/v0.4.1...v0.5.0)*
