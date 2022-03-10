@@ -220,7 +220,7 @@ async def main(
         logger.debug(f"Creating package loader for: {package}")
         loaders.append(jinja2.PackageLoader(package))
 
-    for directory in config["template"]["directory"].get(confuse.Sequence(Filename())):
+    for directory in config["template"]["directory"].get(confuse.StrSeq(split=False)):
         logger.debug(f"Creating file-system loader for: {directory}")
         loaders.append(jinja2.FileSystemLoader(directory))
 
